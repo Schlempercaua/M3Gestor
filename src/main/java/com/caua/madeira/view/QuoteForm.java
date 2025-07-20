@@ -16,6 +16,12 @@ import javafx.scene.layout.*;
 import javafx.util.converter.DoubleStringConverter;
 import javafx.util.converter.IntegerStringConverter;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.stage.Stage;
+import javafx.scene.Scene;
+import javafx.print.PrinterJob;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.Button;
+import javafx.scene.layout.VBox;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -30,6 +36,7 @@ public class QuoteForm extends VBox {
     private Label totalGeralLabel;
     private TableView<QuoteItem> itemsTable;
     private ObservableList<QuoteItem> itemsData;
+    private Button printButton;
     private final QuoteDAO quoteDAO;
     private final ClienteDAO clienteDAO;
     private Quote quoteAtual;
@@ -123,7 +130,12 @@ public class QuoteForm extends VBox {
         deleteButton.setDisable(true);
         deleteButton.setOnAction(e -> excluirOrcamento());
         
-        buttonBox.getChildren().addAll(saveButton, cancelButton, newButton, deleteButton);
+        printButton = new Button("Imprimir");
+        printButton.setStyle("-fx-background-color: #1565c0; -fx-text-fill: white; -fx-pref-width: 100;");
+        printButton.setDisable(true);
+        printButton.setOnAction(e -> imprimirOrcamento());
+        
+        buttonBox.getChildren().addAll(saveButton, cancelButton, newButton, deleteButton, printButton);
         
         // Painel de totais
         GridPane totaisGrid = new GridPane();
@@ -322,31 +334,45 @@ public class QuoteForm extends VBox {
         
         try {
             Quote quote = new Quote();
-            quote.setName(quoteNameField.getText().trim());
-            quote.setClientId(clientComboBox.getValue().getId());
-            quote.setClientName(clientComboBox.getValue().getNome());
-            quote.setShippingValue(parseDoubleSafe(shippingValueField.getText()));
-            quote.setItems(new ArrayList<>(itemsData));
-            
             if (quoteAtual != null) {
                 quote.setId(quoteAtual.getId());
-                quoteDAO.atualizar(quote);
-                showAlert("Sucesso", "Orçamento atualizado com sucesso!", Alert.AlertType.INFORMATION);
-            } else {
-                quoteDAO.salvar(quote);
-                showAlert("Sucesso", "Orçamento salvo com sucesso!", Alert.AlertType.INFORMATION);
             }
             
+            Cliente clienteSelecionado = clientComboBox.getValue();
+            quote.setName(quoteNameField.getText());
+            quote.setShippingValue(parseDoubleSafe(shippingValueField.getText()));
+            quote.setClientId(clienteSelecionado.getId());
+            quote.setClientName(clienteSelecionado.getNome());
+            quote.setItems(new ArrayList<>(itemsData));
+            
+            // Salva no banco de dados
+            if (quoteAtual == null) {
+                quoteDAO.salvar(quote);
+                showAlert("Sucesso", "Orçamento salvo com sucesso!", Alert.AlertType.INFORMATION);
+            } else {
+                quoteDAO.atualizar(quote);
+                showAlert("Sucesso", "Orçamento atualizado com sucesso!", Alert.AlertType.INFORMATION);
+            }
+            
+            // Atualiza a lista de orçamentos
             if (onSaveCallback != null) {
                 onSaveCallback.run();
             }
             
-            limparFormulario();
+            // Carrega o orçamento salvo para obter o ID gerado
+            if (quoteAtual == null) {
+                List<Quote> orcamentos = quoteDAO.buscarPorNome(quote.getName());
+                if (!orcamentos.isEmpty()) {
+                    carregarOrcamento(orcamentos.get(0));
+                }
+            }
+            
+            // Habilita o botão de imprimir após salvar
+            printButton.setDisable(false);
             
         } catch (SQLException e) {
             e.printStackTrace();
-            showAlert("Erro", "Não foi possível salvar o orçamento: " + e.getMessage(), 
-                    Alert.AlertType.ERROR);
+            showAlert("Erro", "Erro ao salvar o orçamento: " + e.getMessage(), Alert.AlertType.ERROR);
         }
     }
     
@@ -387,9 +413,9 @@ public class QuoteForm extends VBox {
         shippingValueField.clear();
         clientComboBox.getSelectionModel().clearSelection();
         itemsData.clear();
-        
-        // Habilita/desabilita botões
+        atualizarTotais();
         deleteButton.setDisable(true);
+        printButton.setDisable(true);
     }
     
     private boolean validarCampos() {
@@ -456,6 +482,110 @@ public class QuoteForm extends VBox {
         alert.showAndWait();
     }
     
+    private void imprimirOrcamento() {
+        if (quoteAtual == null || clientComboBox.getValue() == null) {
+            showAlert("Aviso", "Carregue ou crie um orçamento antes de imprimir.", Alert.AlertType.WARNING);
+            return;
+        }
+        
+        try {
+            // Cria um novo estágio para o diálogo de impressão
+            Stage stage = new Stage();
+            stage.setTitle("Visualizar Orçamento");
+            
+            // Cria um TextArea para exibir o conteúdo do orçamento
+            TextArea textArea = new TextArea();
+            textArea.setEditable(false);
+            textArea.setWrapText(true);
+            textArea.setStyle("-fx-font-family: 'Courier New';");
+            
+            // Gera o conteúdo do orçamento como texto simples
+            String orcamentoTexto = gerarTextoOrcamento();
+            textArea.setText(orcamentoTexto);
+            
+            // Botão de impressão
+            Button printButton = new Button("Imprimir");
+            printButton.setStyle("-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-padding: 8 16;");
+            printButton.setOnAction(e -> {
+                PrinterJob job = PrinterJob.createPrinterJob();
+                if (job != null) {
+                    boolean showDialog = job.showPrintDialog(stage.getOwner());
+                    if (showDialog) {
+                        boolean success = job.printPage(textArea);
+                        if (success) {
+                            job.endJob();
+                        }
+                    }
+                }
+            });
+            
+            // Layout do diálogo
+            VBox root = new VBox(10);
+            root.setPadding(new Insets(10));
+            root.getChildren().addAll(printButton, textArea);
+            VBox.setVgrow(textArea, Priority.ALWAYS);
+            
+            Scene scene = new Scene(root, 600, 700);
+            stage.setScene(scene);
+            stage.show();
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert("Erro", "Erro ao gerar o orçamento para impressão: " + e.getMessage(), Alert.AlertType.ERROR);
+        }
+    }
+    
+    private String gerarTextoOrcamento() {
+        // Dados do orçamento
+        String nomeCliente = clientComboBox.getValue() != null ? clientComboBox.getValue().getNome() : "Não informado";
+        String dataOrcamento = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        double totalItens = itemsData.stream().mapToDouble(QuoteItem::getTotal).sum();
+        double frete = parseDoubleSafe(shippingValueField.getText());
+        double totalGeral = totalItens + frete;
+        
+        // Cria o texto do orçamento
+        StringBuilder sb = new StringBuilder();
+        sb.append("M3 GESTOR\n");
+        sb.append("ORÇAMENTO\n\n");
+        
+        // Informações do orçamento
+        sb.append(String.format("Número: %d%n", quoteAtual.getId()));
+        sb.append(String.format("Cliente: %s%n", nomeCliente));
+        sb.append(String.format("Data: %s%n\n", dataOrcamento));
+        
+        // Cabeçalho da tabela de itens
+        sb.append(String.format("%-5s %-5s %-10s %-10s %-10s %-12s %-10s%n", 
+            "Item", "Qtd", "Largura", "Altura", "Comp.", "Valor (m³)", "Total"));
+        sb.append("-".repeat(70)).append("\n");
+        
+        // Itens do orçamento
+        int itemNum = 1;
+        for (QuoteItem item : itemsData) {
+            sb.append(String.format("%-5d %-5d %-10.0f %-10.0f %-10.0f R$ %-9.2f R$ %-10.2f%n",
+                itemNum++,
+                item.getQuantity(),
+                item.getWidth(),
+                item.getHeight(),
+                item.getLength(),
+                item.getUnitValue(),
+                item.getTotal()
+            ));
+        }
+        
+        // Totais
+        sb.append("\n");
+        sb.append(String.format("%60s R$ %10.2f%n", "Total dos Itens:", totalItens));
+        sb.append(String.format("%60s R$ %10.2f%n", "Frete:", frete));
+        sb.append(String.format("%60s R$ %10.2f%n", "Total Geral:", totalGeral));
+        
+        // Rodapé
+        sb.append("\n\n");
+        sb.append("Assinatura:\n");
+        sb.append("_________________________________\n\n");
+        
+        return sb.toString();
+    }
+    
     // Getters para os campos do formulário
     public void carregarOrcamento(Quote quote) {
         if (quote == null) {
@@ -465,22 +595,18 @@ public class QuoteForm extends VBox {
         
         this.quoteAtual = quote;
         quoteNameField.setText(quote.getName());
+        shippingValueField.setText(String.format("%.2f", quote.getShippingValue()));
         
-        // Seleciona o cliente correspondente
+        // Encontra e seleciona o cliente no ComboBox
         clientComboBox.getItems().stream()
             .filter(c -> c.getId() == quote.getClientId())
             .findFirst()
             .ifPresent(c -> clientComboBox.getSelectionModel().select(c));
-            
-        shippingValueField.setText(String.format("%.2f", quote.getShippingValue()));
         
         // Carrega os itens
-        itemsData.clear();
-        if (quote.getItems() != null) {
-            itemsData.addAll(quote.getItems());
-        }
-        
-        // Habilita o botão de exclusão
+        itemsData.setAll(quote.getItems());
+        atualizarTotais();
         deleteButton.setDisable(false);
+        printButton.setDisable(false);
     }
 }

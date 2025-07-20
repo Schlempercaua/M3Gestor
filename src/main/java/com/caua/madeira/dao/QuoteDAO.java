@@ -73,6 +73,37 @@ public class QuoteDAO {
         }
     }
     
+    public List<Quote> buscarPorNome(String nome) throws SQLException {
+        String sql = "SELECT * FROM quotes WHERE name ILIKE ? ORDER BY id DESC";
+        List<Quote> orcamentos = new ArrayList<>();
+        
+        try (Connection conn = Conexao.conectar();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, "%" + nome + "%");
+            ResultSet rs = stmt.executeQuery();
+            
+            while (rs.next()) {
+                Quote quote = new Quote();
+                quote.setId(rs.getInt("id"));
+                quote.setName(rs.getString("name"));
+                quote.setClientId(rs.getInt("client_id"));
+                quote.setClientName(rs.getString("client_name"));
+                quote.setDate(rs.getDate("date").toLocalDate());
+                quote.setShippingValue(rs.getDouble("shipping_value"));
+                quote.setTotalValue(rs.getDouble("total_value"));
+                
+                // Carrega os itens do orçamento
+                List<QuoteItem> itens = buscarItens(quote.getId());
+                quote.setItems(itens);
+                
+                orcamentos.add(quote);
+            }
+        }
+        
+        return orcamentos;
+    }
+    
     public List<Quote> listarTodos() throws SQLException {
         List<Quote> quotes = new ArrayList<>();
         String sql = "SELECT * FROM quotes ORDER BY date DESC, id DESC;";
