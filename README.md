@@ -1,6 +1,6 @@
 # M3Gestor - Sistema de Gerenciamento para Madeireira
 
-Sistema desktop para gerenciamento de clientes, cálculo de metro cúbico de madeira e geração de orçamentos para Madeireira Pai e Filhos.
+Sistema desktop para gerenciamento de clientes, cálculo de metro cúbico de madeira e geração de orçamentos para Madeireira.
 
 ## Funcionalidades
 
