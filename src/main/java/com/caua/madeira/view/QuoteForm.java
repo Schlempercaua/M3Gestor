@@ -311,7 +311,8 @@ public class QuoteForm extends VBox {
         
         // Atualiza a interface com os totais formatados
         totalItensLabel.setText(String.format("R$ %,.2f", totalItens));
-        shippingValueField.setText(String.format("%.2f", frete));
+        // NÃO sobrescrever o campo de frete aqui para não atrapalhar a digitação do usuário
+// shippingValueField.setText(String.format("%.2f", frete));
         totalGeralLabel.setText(String.format("R$ %,.2f", totalGeral));
     }
     
@@ -360,12 +361,13 @@ public class QuoteForm extends VBox {
             }
             
             // Carrega o orçamento salvo para obter o ID gerado
-            if (quoteAtual == null) {
-                List<Quote> orcamentos = quoteDAO.buscarPorNome(quote.getName());
-                if (!orcamentos.isEmpty()) {
-                    carregarOrcamento(orcamentos.get(0));
-                }
-            }
+            // Só recarrega se realmente necessário
+            // if (quoteAtual == null) {
+            //     List<Quote> orcamentos = quoteDAO.buscarPorNome(quote.getName());
+            //     if (!orcamentos.isEmpty()) {
+            //         carregarOrcamento(orcamentos.get(0));
+            //     }
+            // }
             
             // Habilita o botão de imprimir após salvar
             printButton.setDisable(false);
@@ -561,22 +563,23 @@ public class QuoteForm extends VBox {
         // Itens do orçamento
         int itemNum = 1;
         for (QuoteItem item : itemsData) {
-            sb.append(String.format("%-5d %-5d %-10.0f %-10.0f %-10.0f R$ %-9.2f R$ %-10.2f%n",
+            sb.append(String.format("%-5d %-5d %-10.0f %-10.0f %-10.0f %-12s R$ %-9s R$ %-10s%n",
                 itemNum++,
                 item.getQuantity(),
                 item.getWidth(),
                 item.getHeight(),
                 item.getLength(),
-                item.getUnitValue(),
-                item.getTotal()
+                QuoteItem.formatDoubleBr(item.getCubicMeters()),
+                QuoteItem.formatDoubleBr(item.getUnitValue()),
+                QuoteItem.formatDoubleBr(item.getTotal())
             ));
         }
         
         // Totais
         sb.append("\n");
-        sb.append(String.format("%60s R$ %10.2f%n", "Total dos Itens:", totalItens));
-        sb.append(String.format("%60s R$ %10.2f%n", "Frete:", frete));
-        sb.append(String.format("%60s R$ %10.2f%n", "Total Geral:", totalGeral));
+        sb.append(String.format("%60s R$ %10s%n", "Total dos Itens:", QuoteItem.formatDoubleBr(totalItens)));
+        sb.append(String.format("%60s R$ %10s%n", "Frete:", QuoteItem.formatDoubleBr(frete)));
+        sb.append(String.format("%60s R$ %10s%n", "Total Geral:", QuoteItem.formatDoubleBr(totalGeral)));
         
         // Rodapé
         sb.append("\n\n");

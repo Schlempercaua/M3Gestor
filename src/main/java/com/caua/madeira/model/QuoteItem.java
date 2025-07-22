@@ -88,6 +88,14 @@ public class QuoteItem {
     
     // Calculate cubic meters
     public double getCubicMeters() {
-        return (width * height * length) / 1_000_000; // mm³ to m³
+        // Corrigido: mm³ para m³ = dividir por 1_000_000_000
+        return (width * height * length) / 1_000_000_000.0;
+    }
+
+    /**
+     * Formata um valor double para string com vírgula como separador decimal.
+     */
+    public static String formatDoubleBr(double value) {
+        return String.format("%.3f", value).replace('.', ',');
     }
 }
