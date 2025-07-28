@@ -1,5 +1,8 @@
+com\caua\madeira\model\Quote.class
 com\caua\madeira\dao\ClienteDAO.class
+com\caua\madeira\view\QuoteForm$2.class
 com\caua\madeira\model\Cliente.class
+com\caua\madeira\dao\QuoteDAO.class
 com\caua\madeira\view\ClientList.class
 module-info.class
 com\caua\madeira\model\QuoteItem.class
@@ -7,5 +10,6 @@ com\caua\madeira\view\ClientList$Client.class
 com\caua\madeira\view\QuoteForm.class
 com\caua\madeira\view\QuoteList.class
 com\caua\madeira\database\Conexao.class
+com\caua\madeira\view\QuoteForm$1.class
 com\caua\madeira\Main.class
 com\caua\madeira\view\ClientForm.class

@@ -10,7 +10,12 @@ public class QuoteItem {
     private double total;
     
     public QuoteItem() {
-        // Default constructor
+        this.quantity = 0;
+        this.width = 0.0;
+        this.height = 0.0;
+        this.length = 0.0;
+        this.unitValue = 0.0;
+        this.total = 0.0;
     }
     
     public QuoteItem(String id, int quantity, double width, double height, double length, double unitValue) {
@@ -24,7 +29,7 @@ public class QuoteItem {
     }
     
     public void calculateTotal() {
-        double cubicMeters = (width * height * length) / 1_000_000; // Convert to m³
+        double cubicMeters = width * height * length; // Already in meters
         this.total = cubicMeters * unitValue * quantity;
     }
     
@@ -88,8 +93,8 @@ public class QuoteItem {
     
     // Calculate cubic meters
     public double getCubicMeters() {
-        // Corrigido: mm³ para m³ = dividir por 1_000_000_000
-        return (width * height * length) / 1_000_000_000.0;
+        // Already in cubic meters
+        return width * height * length;
     }
 
     /**

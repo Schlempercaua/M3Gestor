@@ -10,11 +10,11 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.geometry.HPos;
 import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.geometry.HPos;
 import javafx.scene.layout.*;
-import javafx.util.converter.DoubleStringConverter;
 import javafx.util.converter.IntegerStringConverter;
+import com.caua.madeira.util.NumberUtils;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.stage.Stage;
 import javafx.scene.Scene;
@@ -74,6 +74,13 @@ public class QuoteForm extends VBox {
         Label shippingLabel = new Label("VALOR DO FRETE *");
         shippingValueField = new TextField();
         shippingValueField.setPromptText("0,00");
+        
+        // Allow only numeric input with decimal places
+        shippingValueField.textProperty().addListener((observable, oldValue, newValue) -> {
+            if (!newValue.matches("\\d*([,]\\d{0,2})?")) {
+                shippingValueField.setText(oldValue);
+            }
+        });
         
         // Client selection
         Label clientLabel = new Label("SELECIONE O CLIENTE *");
@@ -210,34 +217,46 @@ public class QuoteForm extends VBox {
         qtyCol.setPrefWidth(60);
         
         // Width column (editável)
-        TableColumn<QuoteItem, Double> widthCol = new TableColumn<>("LARGURA (mm)");
+        TableColumn<QuoteItem, Double> widthCol = new TableColumn<>("LARGURA (m)");
         widthCol.setCellValueFactory(new PropertyValueFactory<>("width"));
-        widthCol.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
+        widthCol.setCellFactory(column -> {
+            TextFieldTableCell<QuoteItem, Double> cell = new TextFieldTableCell<QuoteItem, Double>();
+            cell.setConverter(NumberUtils.createDoubleStringConverter());
+            return cell;
+        });
         widthCol.setOnEditCommit(event -> {
             QuoteItem item = event.getRowValue();
-            item.setWidth(event.getNewValue());
+            item.setWidth(NumberUtils.parseDouble(event.getNewValue().toString()));
             atualizarTotais();
         });
         widthCol.setPrefWidth(80);
         
         // Height column (editável)
-        TableColumn<QuoteItem, Double> heightCol = new TableColumn<>("ALTURA (mm)");
+        TableColumn<QuoteItem, Double> heightCol = new TableColumn<>("ALTURA (m)");
         heightCol.setCellValueFactory(new PropertyValueFactory<>("height"));
-        heightCol.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
+        heightCol.setCellFactory(column -> {
+            TextFieldTableCell<QuoteItem, Double> cell = new TextFieldTableCell<QuoteItem, Double>();
+            cell.setConverter(NumberUtils.createDoubleStringConverter());
+            return cell;
+        });
         heightCol.setOnEditCommit(event -> {
             QuoteItem item = event.getRowValue();
-            item.setHeight(event.getNewValue());
+            item.setHeight(NumberUtils.parseDouble(event.getNewValue().toString()));
             atualizarTotais();
         });
         heightCol.setPrefWidth(80);
         
         // Length column (editável)
-        TableColumn<QuoteItem, Double> lengthCol = new TableColumn<>("COMPRIMENTO (mm)");
+        TableColumn<QuoteItem, Double> lengthCol = new TableColumn<>("COMPRIMENTO (m)");
         lengthCol.setCellValueFactory(new PropertyValueFactory<>("length"));
-        lengthCol.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
+        lengthCol.setCellFactory(column -> {
+            TextFieldTableCell<QuoteItem, Double> cell = new TextFieldTableCell<QuoteItem, Double>();
+            cell.setConverter(NumberUtils.createDoubleStringConverter());
+            return cell;
+        });
         lengthCol.setOnEditCommit(event -> {
             QuoteItem item = event.getRowValue();
-            item.setLength(event.getNewValue());
+            item.setLength(NumberUtils.parseDouble(event.getNewValue().toString()));
             atualizarTotais();
         });
         lengthCol.setPrefWidth(120);
@@ -245,10 +264,14 @@ public class QuoteForm extends VBox {
         // Unit value column (editável)
         TableColumn<QuoteItem, Double> unitValueCol = new TableColumn<>("VALOR UND. (R$/m³)");
         unitValueCol.setCellValueFactory(new PropertyValueFactory<>("unitValue"));
-        unitValueCol.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
+        unitValueCol.setCellFactory(column -> {
+            TextFieldTableCell<QuoteItem, Double> cell = new TextFieldTableCell<QuoteItem, Double>();
+            cell.setConverter(NumberUtils.createCurrencyStringConverter());
+            return cell;
+        });
         unitValueCol.setOnEditCommit(event -> {
             QuoteItem item = event.getRowValue();
-            item.setUnitValue(event.getNewValue());
+            item.setUnitValue(NumberUtils.parseDouble(event.getNewValue().toString()));
             atualizarTotais();
         });
         unitValueCol.setPrefWidth(120);
@@ -258,6 +281,17 @@ public class QuoteForm extends VBox {
         totalCol.setCellValueFactory(cellData -> {
             QuoteItem item = cellData.getValue();
             return new SimpleDoubleProperty(item.getTotal()).asObject();
+        });
+        totalCol.setCellFactory(tc -> new TableCell<QuoteItem, Double>() {
+            @Override
+            protected void updateItem(Double value, boolean empty) {
+                super.updateItem(value, empty);
+                if (empty || value == null) {
+                    setText(null);
+                } else {
+                    setText(String.format("R$ %.2f", value));
+                }
+            }
         });
         totalCol.setPrefWidth(100);
         
@@ -442,29 +476,26 @@ public class QuoteForm extends VBox {
     }
     
     private double parseDoubleSafe(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return 0.0;
+        }
+        // Substitui vírgula por ponto para garantir o parse correto
+        String normalizedValue = value.trim().replace(".", "").replace(',', '.');
         try {
-            if (value == null || value.trim().isEmpty()) {
-                return 0.0;
-            }
-            return Double.parseDouble(value.replace(",", "."));
+            return Double.parseDouble(normalizedValue);
         } catch (NumberFormatException e) {
             return 0.0;
         }
     }
     
     private void adicionarNovoItem() {
-        // TODO: Implementar diálogo para adicionar novo item
-        // Por enquanto, adiciona um item de exemplo
         QuoteItem novoItem = new QuoteItem();
         novoItem.setId(String.valueOf(itemsData.size() + 1));
-        novoItem.setQuantity(1);
-        novoItem.setWidth(100);
-        novoItem.setHeight(100);
-        novoItem.setLength(1000);
-        novoItem.setUnitValue(1500.0);
-        novoItem.calculateTotal();
-        
+        // Todos os campos numéricos já são inicializados como 0.0 no construtor de QuoteItem
+        // Apenas adiciona o item à lista
         itemsData.add(novoItem);
+        // Atualiza os totais
+        atualizarTotais();
     }
     
     private void removerItemSelecionado() {
