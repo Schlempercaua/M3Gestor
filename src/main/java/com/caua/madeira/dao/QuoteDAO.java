@@ -11,8 +11,8 @@ import java.util.List;
 public class QuoteDAO {
     
     public void salvar(Quote quote) throws SQLException {
-        String sql = "INSERT INTO quotes (name, client_id, client_name, date, shipping_value, total_value) " +
-                    "VALUES (?, ?, ?, ?, ?, ?) RETURNING id;";
+        String sql = "INSERT INTO quotes (name, client_id, client_name, date, shipping_value, total_value, discount, complemento) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id;";
             
         try (Connection conn = Conexao.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -23,6 +23,7 @@ public class QuoteDAO {
             stmt.setDate(4, Date.valueOf(quote.getDate()));
             stmt.setDouble(5, quote.getShippingValue());
             stmt.setDouble(6, quote.getTotalValue());
+            stmt.setString(7, quote.getComplemento());
             
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
@@ -37,7 +38,7 @@ public class QuoteDAO {
     
     public void atualizar(Quote quote) throws SQLException {
         String sql = "UPDATE quotes SET name = ?, client_id = ?, client_name = ?, date = ?, " +
-                    "shipping_value = ?, total_value = ? WHERE id = ?;";
+                    "shipping_value = ?, total_value = ?, discount = ?, complemento = ? WHERE id = ?;";
             
         try (Connection conn = Conexao.conectar();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -46,9 +47,11 @@ public class QuoteDAO {
             stmt.setInt(2, quote.getClientId());
             stmt.setString(3, quote.getClientName());
             stmt.setDate(4, Date.valueOf(quote.getDate()));
-            stmt.setDouble(5, quote.getShippingValue());
+stmt.setDouble(5, quote.getShippingValue());
             stmt.setDouble(6, quote.getTotalValue());
-            stmt.setInt(7, quote.getId());
+            stmt.setDouble(7, quote.getDiscount());
+            stmt.setString(8, quote.getComplemento());
+            stmt.setInt(9, quote.getId());
             
             stmt.executeUpdate();
             
@@ -92,6 +95,7 @@ public class QuoteDAO {
                 quote.setDate(rs.getDate("date").toLocalDate());
                 quote.setShippingValue(rs.getDouble("shipping_value"));
                 quote.setTotalValue(rs.getDouble("total_value"));
+                quote.setDiscount(rs.getDouble("discount"));
                 
                 // Carrega os itens do orçamento
                 List<QuoteItem> itens = buscarItens(quote.getId());
@@ -148,6 +152,7 @@ public class QuoteDAO {
         quote.setDate(rs.getDate("date").toLocalDate());
         quote.setShippingValue(rs.getDouble("shipping_value"));
         quote.setTotalValue(rs.getDouble("total_value"));
+        quote.setComplemento(rs.getString("complemento"));
         
         // Carrega os itens do orçamento
         List<QuoteItem> itens = buscarItens(quote.getId());

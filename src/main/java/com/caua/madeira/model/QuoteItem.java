@@ -29,7 +29,8 @@ public class QuoteItem {
     }
     
     public void calculateTotal() {
-        double cubicMeters = width * height * length; // Already in meters
+        // As medidas já estão em metros (ex: 0,50 para 50cm)
+        double cubicMeters = width * height * length;
         this.total = cubicMeters * unitValue * quantity;
     }
     

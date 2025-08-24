@@ -12,6 +12,8 @@ public class Quote {
     private LocalDate date;
     private double shippingValue;
     private double totalValue;
+    private double discount;
+    private String complemento;
     private List<QuoteItem> items;
     
     public Quote() {
@@ -19,7 +21,7 @@ public class Quote {
     }
     
     public Quote(int id, String name, int clientId, String clientName, LocalDate date, 
-                double shippingValue, double totalValue, List<QuoteItem> items) {
+                double shippingValue, double totalValue, double discount, String complemento, List<QuoteItem> items) {
         this.id = id;
         this.name = name;
         this.clientId = clientId;
@@ -27,6 +29,8 @@ public class Quote {
         this.date = date != null ? date : LocalDate.now();
         this.shippingValue = shippingValue;
         this.totalValue = totalValue;
+        this.discount = discount;
+        this.complemento = complemento;
         this.items = items;
     }
     
@@ -95,6 +99,22 @@ public class Quote {
         return items;
     }
     
+    public double getDiscount() {
+        return discount;
+    }
+    
+    public void setDiscount(double discount) {
+        this.discount = discount;
+    }
+    
+    public String getComplemento() {
+        return complemento != null ? complemento : "";
+    }
+    
+    public void setComplemento(String complemento) {
+        this.complemento = complemento;
+    }
+    
     public void setItems(List<QuoteItem> items) {
         this.items = items;
         calculateTotal();
@@ -111,12 +131,19 @@ public class Quote {
     }
     
     private void calculateTotal() {
+        double subtotal = 0.0;
         if (items != null) {
-            this.totalValue = items.stream()
+            subtotal = items.stream()
                 .mapToDouble(QuoteItem::getTotal)
-                .sum() + shippingValue;
-        } else {
-            this.totalValue = shippingValue;
+                .sum();
         }
+        
+        // Aplicar desconto se houver
+        if (discount > 0) {
+            subtotal = subtotal - (subtotal * (discount / 100.0));
+        }
+        
+        // Adicionar frete
+        this.totalValue = subtotal + shippingValue;
     }
 }
