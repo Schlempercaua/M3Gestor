@@ -6,6 +6,8 @@ module com.caua.madeira {
     
     // Módulos Java SE
     requires transitive java.sql;
+    requires java.desktop; // para Desktop.open()
+    requires com.github.librepdf.openpdf; // OpenPDF
     
     // Exporta os pacotes necessários
     exports com.caua.madeira;
