@@ -512,7 +512,7 @@ public class QuoteForm extends VBox {
         Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12);
         Font boldFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9);
         Font normalFont = FontFactory.getFont(FontFactory.HELVETICA, 9);
-        Font smallFont = FontFactory.getFont(FontFactory.HELVETICA, 8);
+        Font smallFont = FontFactory.getFont(FontFactory.HELVETICA, 10);
 
         // Cabeçalho com avisos
         Paragraph aviso1 = new Paragraph("DOCUMENTO AUXILIAR DE VENDA - ORÇAMENTO", titleFont);
@@ -651,14 +651,15 @@ public class QuoteForm extends VBox {
         document.add(Chunk.NEWLINE);
 
         // Totais
-        double desconto = quote.getDiscount();
-        double subtotalComDesconto = desconto > 0 ? subtotal - (subtotal * (desconto / 100.0)) : subtotal;
+        double desconto = quote.getDiscount(); // percentual
+        double valorDesconto = desconto > 0 ? (subtotal * (desconto / 100.0)) : 0.0; // em R$
+        double subtotalComDesconto = subtotal - valorDesconto;
         double totalGeral = subtotalComDesconto + quote.getShippingValue();
 
         PdfPTable totaisTable = new PdfPTable(new float[]{3f, 1f});
         totaisTable.setWidthPercentage(60);
         totaisTable.setHorizontalAlignment(Element.ALIGN_RIGHT);
-        addInfoRow(totaisTable, "Subtotal:", formatCurrency(subtotal), "Desconto (%):", String.format("%.2f", desconto).replace('.', ','), boldFont, normalFont);
+        addInfoRow(totaisTable, "Subtotal:", formatCurrency(subtotal), "Desconto (R$):", formatCurrency(valorDesconto), boldFont, normalFont);
         addInfoRow(totaisTable, "Frete:", formatCurrency(quote.getShippingValue()), "Total Geral:", formatCurrency(totalGeral), boldFont, normalFont);
         document.add(totaisTable);
 
