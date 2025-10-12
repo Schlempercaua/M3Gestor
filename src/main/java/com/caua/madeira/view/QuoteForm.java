@@ -301,7 +301,7 @@ public class QuoteForm extends VBox {
         idCol.setPrefWidth(50);
         
         // Quantity column (editável)
-        TableColumn<QuoteItem, Integer> quantityCol = new TableColumn<>("QUANT.");
+        TableColumn<QuoteItem, Integer> quantityCol = new TableColumn<>("QUANT");
         quantityCol.setCellValueFactory(new PropertyValueFactory<>("quantity"));
         quantityCol.setCellFactory(TextFieldTableCell.forTableColumn(new IntegerStringConverter()));
         quantityCol.setOnEditCommit(event -> {
@@ -309,11 +309,12 @@ public class QuoteForm extends VBox {
             item.setQuantity(event.getNewValue());
             item.calculateTotal();
             atualizarTotais();
+            itemsTable.refresh();
         });
         quantityCol.setPrefWidth(60);
         
         // Width column (editável)
-        TableColumn<QuoteItem, Double> widthCol = new TableColumn<>("LARGURA (m)");
+        TableColumn<QuoteItem, Double> widthCol = new TableColumn<>("LARGURA(cm)");
         widthCol.setCellValueFactory(new PropertyValueFactory<>("width"));
         widthCol.setCellFactory(column -> {
             TextFieldTableCell<QuoteItem, Double> cell = new TextFieldTableCell<QuoteItem, Double>();
@@ -324,11 +325,12 @@ public class QuoteForm extends VBox {
             QuoteItem item = event.getRowValue();
             item.setWidth(NumberUtils.parseDouble(event.getNewValue().toString()));
             atualizarTotais();
+            itemsTable.refresh();
         });
         widthCol.setPrefWidth(80);
         
         // Height column (editável)
-        TableColumn<QuoteItem, Double> heightCol = new TableColumn<>("ALTURA (m)");
+        TableColumn<QuoteItem, Double> heightCol = new TableColumn<>("ESPESSURA(cm)");
         heightCol.setCellValueFactory(new PropertyValueFactory<>("height"));
         heightCol.setCellFactory(column -> {
             TextFieldTableCell<QuoteItem, Double> cell = new TextFieldTableCell<QuoteItem, Double>();
@@ -339,11 +341,12 @@ public class QuoteForm extends VBox {
             QuoteItem item = event.getRowValue();
             item.setHeight(NumberUtils.parseDouble(event.getNewValue().toString()));
             atualizarTotais();
+            itemsTable.refresh();
         });
         heightCol.setPrefWidth(80);
         
         // Length column (editável)
-        TableColumn<QuoteItem, Double> lengthCol = new TableColumn<>("COMPRIMENTO (m)");
+        TableColumn<QuoteItem, Double> lengthCol = new TableColumn<>("COMP(m)");
         lengthCol.setCellValueFactory(new PropertyValueFactory<>("length"));
         lengthCol.setCellFactory(column -> {
             TextFieldTableCell<QuoteItem, Double> cell = new TextFieldTableCell<QuoteItem, Double>();
@@ -354,11 +357,20 @@ public class QuoteForm extends VBox {
             QuoteItem item = event.getRowValue();
             item.setLength(NumberUtils.parseDouble(event.getNewValue().toString()));
             atualizarTotais();
+            itemsTable.refresh();
         });
         lengthCol.setPrefWidth(120);
         
+        // M3 column (não editável)
+        TableColumn<QuoteItem, String> m3Col = new TableColumn<>("M3");
+        m3Col.setCellValueFactory(cellData -> {
+            double m3 = cellData.getValue().getCubicMeters();
+            return new SimpleStringProperty(String.format("%.3f", m3).replace('.', ','));
+        });
+        m3Col.setPrefWidth(90);
+        
         // Unit value column (editável)
-        TableColumn<QuoteItem, Double> unitValueCol = new TableColumn<>("VALOR UND. (R$/m³)");
+        TableColumn<QuoteItem, Double> unitValueCol = new TableColumn<>("VALOR UNIT(R$/m³)");
         unitValueCol.setCellValueFactory(new PropertyValueFactory<>("unitValue"));
         unitValueCol.setCellFactory(column -> {
             TextFieldTableCell<QuoteItem, Double> cell = new TextFieldTableCell<QuoteItem, Double>();
@@ -370,11 +382,12 @@ public class QuoteForm extends VBox {
             item.setUnitValue(event.getNewValue());
             item.calculateTotal();
             atualizarTotais();
+            itemsTable.refresh();
         });
         unitValueCol.setPrefWidth(150);
         
         // Total column (não editável)
-        TableColumn<QuoteItem, String> totalCol = new TableColumn<>("TOTAL (R$)");
+        TableColumn<QuoteItem, String> totalCol = new TableColumn<>("TOTAL(R$)");
         totalCol.setCellValueFactory(cellData -> {
             double total = cellData.getValue().getTotal();
             return new SimpleStringProperty(String.format("R$ %.2f", total));
@@ -387,6 +400,7 @@ public class QuoteForm extends VBox {
         itemsTable.getColumns().add(widthCol);
         itemsTable.getColumns().add(heightCol);
         itemsTable.getColumns().add(lengthCol);
+        itemsTable.getColumns().add(m3Col);
         itemsTable.getColumns().add(unitValueCol);
         itemsTable.getColumns().add(totalCol);
         itemsTable.setItems(itemsData);
@@ -504,170 +518,189 @@ public class QuoteForm extends VBox {
         // Arquivo temporário
         Path temp = Files.createTempFile("orcamento-" + quote.getId() + "-", ".pdf");
 
-        Document document = new Document(PageSize.A4, 36, 36, 36, 36);
+        Document document = new Document(PageSize.A4, 12, 12, 12, 12);
         PdfWriter.getInstance(document, Files.newOutputStream(temp, StandardOpenOption.TRUNCATE_EXISTING));
         document.open();
 
         // Fontes
-        Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12);
-        Font boldFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9);
-        Font normalFont = FontFactory.getFont(FontFactory.HELVETICA, 9);
-        Font smallFont = FontFactory.getFont(FontFactory.HELVETICA, 10);
+        Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
+        Font boldFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 7);
+        Font normalFont = FontFactory.getFont(FontFactory.HELVETICA, 7);
+        Font smallFont = FontFactory.getFont(FontFactory.HELVETICA, 7);
 
-        // Cabeçalho com avisos
-        Paragraph aviso1 = new Paragraph("DOCUMENTO AUXILIAR DE VENDA - ORÇAMENTO", titleFont);
-        aviso1.setAlignment(Element.ALIGN_CENTER);
-        document.add(aviso1);
-        Paragraph aviso2 = new Paragraph("NÃO É DOCUMENTO FISCAL - NÃO É VÁLIDO COMO RECIBO E COMO\nGARANTIA DE MERCADORIA - NÃO COMPROVA PAGAMENTO", boldFont);
-        aviso2.setAlignment(Element.ALIGN_CENTER);
-        document.add(aviso2);
+        // Duas cópias do orçamento na mesma página
+        for (int copy = 0; copy < 2; copy++) {
+            // Cabeçalho com título
+            Paragraph aviso1 = new Paragraph("DOCUMENTO AUXILIAR DE VENDA - ORÇAMENTO", titleFont);
+            aviso1.setAlignment(Element.ALIGN_LEFT);
+            aviso1.setSpacingAfter(2f);
+            document.add(aviso1);
 
-        document.add(Chunk.NEWLINE);
+            // Bloco com logo e dados da empresa
+            PdfPTable headerTable = new PdfPTable(new float[]{0.7f, 3.3f});
+            headerTable.setWidthPercentage(100);
+            headerTable.setHorizontalAlignment(Element.ALIGN_LEFT);
+            // garantir alinhamento à esquerda para todas as células por padrão
+            headerTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
+            headerTable.getDefaultCell().setHorizontalAlignment(Element.ALIGN_LEFT);
+            headerTable.getDefaultCell().setVerticalAlignment(Element.ALIGN_TOP);
 
-        // Bloco com logo e dados da empresa
-        PdfPTable headerTable = new PdfPTable(new float[]{1f, 3f});
-        headerTable.setWidthPercentage(100);
-        headerTable.setHorizontalAlignment(Element.ALIGN_LEFT);
-        // garantir alinhamento à esquerda para todas as células por padrão
-        headerTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
-        headerTable.getDefaultCell().setHorizontalAlignment(Element.ALIGN_LEFT);
-        headerTable.getDefaultCell().setVerticalAlignment(Element.ALIGN_TOP);
-
-        // Logo (opcional)
-        PdfPCell logoCell;
-        Image logoImg = carregarLogoOpcional();
-        if (logoImg != null) {
-            logoImg.scaleToFit(80, 80);
-            logoCell = new PdfPCell(logoImg, false);
-        } else {
-            logoCell = new PdfPCell(new Phrase(""));
-            logoCell.setMinimumHeight(60);
-        }
-        logoCell.setBorder(Rectangle.NO_BORDER);
-        logoCell.setHorizontalAlignment(Element.ALIGN_LEFT);
-        logoCell.setVerticalAlignment(Element.ALIGN_TOP);
-        headerTable.addCell(logoCell);
-
-        // Dados da empresa (ajuste aqui conforme necessário)
-        String empresaRazao = "MW DEPARTAMENTOS LTDA - MW DEPARTAMENTOS";
-        String empresaCnpj = "CNPJ:46.922.149/0001-29";
-        String empresaEnd = "Endereço: Avenida Beira Rio - sala 02, 231 - centro";
-        String empresaCidade = "Cidade: Alfredo Wagner - SC - 88450-000";
-        String empresaFone = "Telefone: (48) 98429-5484";
-
-        // Usar uma tabela interna de 1 coluna para garantir alinhamento à esquerda
-        PdfPTable empresaInfoTable = new PdfPTable(1);
-        empresaInfoTable.setWidthPercentage(100);
-        empresaInfoTable.setHorizontalAlignment(Element.ALIGN_LEFT);
-        empresaInfoTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
-        empresaInfoTable.getDefaultCell().setHorizontalAlignment(Element.ALIGN_LEFT);
-        empresaInfoTable.getDefaultCell().setPadding(0f);
-
-        PdfPCell l1 = new PdfPCell(new Phrase(empresaRazao, titleFont));
-        l1.setBorder(Rectangle.NO_BORDER);
-        l1.setHorizontalAlignment(Element.ALIGN_LEFT);
-        l1.setPadding(0f);
-        empresaInfoTable.addCell(l1);
-
-        PdfPCell l2 = new PdfPCell(new Phrase(empresaRazao, normalFont));
-        l2.setBorder(Rectangle.NO_BORDER);
-        l2.setHorizontalAlignment(Element.ALIGN_LEFT);
-        l2.setPadding(0f);
-        empresaInfoTable.addCell(l2);
-
-        PdfPCell l3 = new PdfPCell(new Phrase(empresaCnpj, normalFont));
-        l3.setBorder(Rectangle.NO_BORDER);
-        l3.setHorizontalAlignment(Element.ALIGN_LEFT);
-        l3.setPadding(0f);
-        empresaInfoTable.addCell(l3);
-
-        PdfPCell l4 = new PdfPCell(new Phrase(empresaEnd, normalFont));
-        l4.setBorder(Rectangle.NO_BORDER);
-        l4.setHorizontalAlignment(Element.ALIGN_LEFT);
-        l4.setPadding(0f);
-        empresaInfoTable.addCell(l4);
-
-        PdfPCell l4a = new PdfPCell(new Phrase(empresaCidade, normalFont));
-        l4a.setBorder(Rectangle.NO_BORDER);
-        l4a.setHorizontalAlignment(Element.ALIGN_LEFT);
-        l4a.setPadding(0f);
-        empresaInfoTable.addCell(l4a);
-
-        PdfPCell l5 = new PdfPCell(new Phrase(empresaFone, normalFont));
-        l5.setBorder(Rectangle.NO_BORDER);
-        l5.setHorizontalAlignment(Element.ALIGN_LEFT);
-        l5.setPadding(0f);
-        empresaInfoTable.addCell(l5);
-
-        PdfPCell empresaCell = new PdfPCell(empresaInfoTable);
-        empresaCell.setBorder(Rectangle.NO_BORDER);
-        empresaCell.setHorizontalAlignment(Element.ALIGN_LEFT);
-        empresaCell.setVerticalAlignment(Element.ALIGN_TOP);
-        empresaCell.setPadding(0f);
-        headerTable.addCell(empresaCell);
-
-        document.add(headerTable);
-        document.add(Chunk.NEWLINE);
-
-        document.add(Chunk.NEWLINE);
-
-        // Bloco cliente
-        PdfPTable clienteTable = new PdfPTable(new float[]{1.2f, 3.8f});
-        clienteTable.setWidthPercentage(100);
-        addInfoRowFull(clienteTable, "Identificação do Solicitante", "", boldFont, normalFont, Color.LIGHT_GRAY);
-        addInfoRowFull(clienteTable, "Cliente:", valorOuVazio(cliente != null ? cliente.getNome() : quote.getClientName()), boldFont, normalFont, null);
-        addInfoRowFull(clienteTable, "CPF/CNPJ:", valorOuVazio(cliente != null ? cliente.getDocumento() : ""), boldFont, normalFont, null);
-        addInfoRowFull(clienteTable, "Endereço:", valorOuVazio(cliente != null ? cliente.getEndereco() : ""), boldFont, normalFont, null);
-        addInfoRowFull(clienteTable, "Telefone:", valorOuVazio(cliente != null ? cliente.getTelefone() : ""), boldFont, normalFont, null);
-        addInfoRowFull(clienteTable, "E-mail:", valorOuVazio(cliente != null ? cliente.getEmail() : ""), boldFont, normalFont, null);
-        document.add(clienteTable);
-
-        document.add(Chunk.NEWLINE);
-
-        // Tabela de itens
-        PdfPTable itensTable = new PdfPTable(new float[]{0.9f, 1.2f, 1.2f, 1.5f, 1.5f, 1.3f});
-        itensTable.setWidthPercentage(100);
-        addHeaderCell(itensTable, "QUANT.", boldFont);
-        addHeaderCell(itensTable, "LARGURA (m)", boldFont);
-        addHeaderCell(itensTable, "ALTURA (m)", boldFont);
-        addHeaderCell(itensTable, "COMPRIMENTO (m)", boldFont);
-        addHeaderCell(itensTable, "VALOR UND. (R$/m³)", boldFont);
-        addHeaderCell(itensTable, "TOTAL (R$)", boldFont);
-
-        double subtotal = 0.0;
-        if (quote.getItems() != null) {
-            for (QuoteItem item : quote.getItems()) {
-                itensTable.addCell(new Phrase(String.valueOf(item.getQuantity()), normalFont));
-                itensTable.addCell(new Phrase(QuoteItem.formatDoubleBr(item.getWidth()), normalFont));
-                itensTable.addCell(new Phrase(QuoteItem.formatDoubleBr(item.getHeight()), normalFont));
-                itensTable.addCell(new Phrase(QuoteItem.formatDoubleBr(item.getLength()), normalFont));
-                itensTable.addCell(new Phrase(String.format("%.2f", item.getUnitValue()).replace('.', ','), normalFont));
-                itensTable.addCell(new Phrase(String.format("R$ %.2f", item.getTotal()).replace('.', ','), normalFont));
-                subtotal += item.getTotal();
+            // Logo (opcional)
+            PdfPCell logoCell;
+            Image logoImg = carregarLogoOpcional();
+            if (logoImg != null) {
+                logoImg.scaleToFit(60, 60);
+                logoCell = new PdfPCell(logoImg, false);
+            } else {
+                logoCell = new PdfPCell(new Phrase(""));
+                logoCell.setMinimumHeight(40);
             }
-        }
-        document.add(itensTable);
+            logoCell.setBorder(Rectangle.NO_BORDER);
+            logoCell.setHorizontalAlignment(Element.ALIGN_LEFT);
+            logoCell.setPaddingRight(4f);
+            logoCell.setVerticalAlignment(Element.ALIGN_TOP);
+            headerTable.addCell(logoCell);
 
-        document.add(Chunk.NEWLINE);
+            // Dados da empresa (ajuste aqui conforme necessário)
+            String empresaRazao = "Madeireira Pai e Filhos LTDA";
+            String empresaCnpj = "CNPJ: 10.947.731/0001-00";
+            String empresaEnd = "Endereço: Rodovia Br 282 Km 106 - Aguas Frias";
+            String empresaCidade = "Cidade: Alfredo Wagner - SC - 88450-000";
+            String empresaFone = "Telefone: (48) 99125-2582 / (48) 98835-4417";
 
-        // Totais
-        double desconto = quote.getDiscount(); // percentual
-        double valorDesconto = desconto > 0 ? (subtotal * (desconto / 100.0)) : 0.0; // em R$
-        double subtotalComDesconto = subtotal - valorDesconto;
-        double totalGeral = subtotalComDesconto + quote.getShippingValue();
+            // Usar uma tabela interna de 1 coluna para garantir alinhamento à esquerda
+            PdfPTable empresaInfoTable = new PdfPTable(1);
+            empresaInfoTable.setWidthPercentage(100);
+            empresaInfoTable.setHorizontalAlignment(Element.ALIGN_LEFT);
+            empresaInfoTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
+            empresaInfoTable.getDefaultCell().setHorizontalAlignment(Element.ALIGN_LEFT);
+            empresaInfoTable.getDefaultCell().setPadding(0f);
 
-        PdfPTable totaisTable = new PdfPTable(new float[]{3f, 1f});
-        totaisTable.setWidthPercentage(60);
-        totaisTable.setHorizontalAlignment(Element.ALIGN_RIGHT);
-        addInfoRow(totaisTable, "Subtotal:", formatCurrency(subtotal), "Desconto (R$):", formatCurrency(valorDesconto), boldFont, normalFont);
-        addInfoRow(totaisTable, "Frete:", formatCurrency(quote.getShippingValue()), "Total Geral:", formatCurrency(totalGeral), boldFont, normalFont);
-        document.add(totaisTable);
+            PdfPCell l1 = new PdfPCell(new Phrase(empresaRazao, titleFont));
+            l1.setBorder(Rectangle.NO_BORDER);
+            l1.setHorizontalAlignment(Element.ALIGN_LEFT);
+            l1.setPadding(0f);
+            empresaInfoTable.addCell(l1);
 
-        document.add(Chunk.NEWLINE);
+            PdfPCell l2 = new PdfPCell(new Phrase(empresaRazao, normalFont));
+            l2.setBorder(Rectangle.NO_BORDER);
+            l2.setHorizontalAlignment(Element.ALIGN_LEFT);
+            l2.setPadding(0f);
+            empresaInfoTable.addCell(l2);
 
-        if (quote.getComplemento() != null && !quote.getComplemento().isBlank()) {
-            Paragraph comp = new Paragraph("Observações: " + quote.getComplemento(), smallFont);
-            document.add(comp);
+            PdfPCell l3 = new PdfPCell(new Phrase(empresaCnpj, normalFont));
+            l3.setBorder(Rectangle.NO_BORDER);
+            l3.setHorizontalAlignment(Element.ALIGN_LEFT);
+            l3.setPadding(0f);
+            empresaInfoTable.addCell(l3);
+
+            PdfPCell l4 = new PdfPCell(new Phrase(empresaEnd, normalFont));
+            l4.setBorder(Rectangle.NO_BORDER);
+            l4.setHorizontalAlignment(Element.ALIGN_LEFT);
+            l4.setPadding(0f);
+            empresaInfoTable.addCell(l4);
+
+            PdfPCell l4a = new PdfPCell(new Phrase(empresaCidade, normalFont));
+            l4a.setBorder(Rectangle.NO_BORDER);
+            l4a.setHorizontalAlignment(Element.ALIGN_LEFT);
+            l4a.setPadding(0f);
+            empresaInfoTable.addCell(l4a);
+
+            PdfPCell l5 = new PdfPCell(new Phrase(empresaFone, normalFont));
+            l5.setBorder(Rectangle.NO_BORDER);
+            l5.setHorizontalAlignment(Element.ALIGN_LEFT);
+            l5.setPadding(0f);
+            empresaInfoTable.addCell(l5);
+
+            PdfPCell empresaCell = new PdfPCell(empresaInfoTable);
+            empresaCell.setBorder(Rectangle.NO_BORDER);
+            empresaCell.setHorizontalAlignment(Element.ALIGN_LEFT);
+            empresaCell.setVerticalAlignment(Element.ALIGN_TOP);
+            empresaCell.setPadding(0f);
+            headerTable.addCell(empresaCell);
+
+            headerTable.setSpacingAfter(2f);
+            document.add(headerTable);
+
+            // Bloco cliente
+            PdfPTable clienteTable = new PdfPTable(new float[]{1.2f, 3.8f});
+            clienteTable.setWidthPercentage(100);
+            clienteTable.getDefaultCell().setPadding(1f);
+            clienteTable.setSpacingAfter(2f);
+            addInfoRowFull(clienteTable, "Identificação do Solicitante", "", boldFont, normalFont, Color.LIGHT_GRAY);
+            addInfoRowFull(clienteTable, "Cliente:", valorOuVazio(cliente != null ? cliente.getNome() : quote.getClientName()), boldFont, normalFont, null);
+            addInfoRowFull(clienteTable, "CPF/CNPJ:", valorOuVazio(cliente != null ? cliente.getDocumento() : ""), boldFont, normalFont, null);
+            addInfoRowFull(clienteTable, "Endereço:", valorOuVazio(cliente != null ? cliente.getEndereco() : ""), boldFont, normalFont, null);
+            addInfoRowFull(clienteTable, "Telefone:", valorOuVazio(cliente != null ? cliente.getTelefone() : ""), boldFont, normalFont, null);
+            addInfoRowFull(clienteTable, "E-mail:", valorOuVazio(cliente != null ? cliente.getEmail() : ""), boldFont, normalFont, null);
+            document.add(clienteTable);
+
+            // Tabela de itens
+            PdfPTable itensTable = new PdfPTable(new float[]{0.9f, 1.2f, 1.2f, 1.5f, 1.0f, 1.5f, 1.3f});
+            itensTable.setWidthPercentage(100);
+            itensTable.getDefaultCell().setPadding(1f);
+            itensTable.setSpacingAfter(2f);
+            addHeaderCell(itensTable, "QUANT.", boldFont);
+            addHeaderCell(itensTable, "LARGURA (cm)", boldFont);
+            addHeaderCell(itensTable, "ALTURA (cm)", boldFont);
+            addHeaderCell(itensTable, "COMPRIMENTO (m)", boldFont);
+            addHeaderCell(itensTable, "M3", boldFont);
+            addHeaderCell(itensTable, "VALOR UND. (R$/m³)", boldFont);
+            addHeaderCell(itensTable, "TOTAL (R$)", boldFont);
+
+            double subtotal = 0.0;
+            if (quote.getItems() != null) {
+                for (QuoteItem item : quote.getItems()) {
+                    itensTable.addCell(new Phrase(String.valueOf(item.getQuantity()), normalFont));
+                    itensTable.addCell(new Phrase(QuoteItem.formatDoubleBr(item.getWidth()), normalFont));
+                    itensTable.addCell(new Phrase(QuoteItem.formatDoubleBr(item.getHeight()), normalFont));
+                    itensTable.addCell(new Phrase(QuoteItem.formatDoubleBr(item.getLength()), normalFont));
+                    itensTable.addCell(new Phrase(String.format("%.3f", item.getCubicMeters()).replace('.', ','), normalFont));
+                    itensTable.addCell(new Phrase(String.format("%.2f", item.getUnitValue()).replace('.', ','), normalFont));
+                    itensTable.addCell(new Phrase(String.format("R$ %.2f", item.getTotal()).replace('.', ','), normalFont));
+                    subtotal += item.getTotal();
+                }
+            }
+            document.add(itensTable);
+
+            // Totais
+            double desconto = quote.getDiscount(); // percentual
+            double valorDesconto = desconto > 0 ? (subtotal * (desconto / 100.0)) : 0.0; // em R$
+            double subtotalComDesconto = subtotal - valorDesconto;
+            double totalGeral = subtotalComDesconto + quote.getShippingValue();
+
+            // Tabela de totais com largura da coluna de valores igual à coluna TOTAL (R$) da tabela de itens
+            float availableWidth = (float) (document.getPageSize().getWidth() - document.leftMargin() - document.rightMargin());
+            float[] itemCols = new float[]{0.9f, 1.2f, 1.2f, 1.5f, 1.0f, 1.5f, 1.3f};
+            float sum = 0f; for (float v : itemCols) sum += v;
+            float totalColWidth = availableWidth * (1.3f / sum); // 1.3f = proporção da coluna TOTAL (R$)
+
+            // Mantém proporção 3:1 (rótulo:valor), mas fixa a coluna de valores para igualar ao TOTAL (R$)
+            float a = 3f, b = 1f;
+            float totaisTotalWidth = totalColWidth * ((a + b) / b);
+            float labelAbs = totaisTotalWidth * (a / (a + b));
+            float valueAbs = totaisTotalWidth * (b / (a + b)); // deve ser igual a totalColWidth
+
+            PdfPTable totaisTable = new PdfPTable(2);
+            totaisTable.setTotalWidth(new float[]{labelAbs, valueAbs});
+            totaisTable.setLockedWidth(true);
+            totaisTable.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            totaisTable.getDefaultCell().setPadding(1f);
+            totaisTable.setSpacingAfter(1f);
+
+            addInfoRow(totaisTable, "Subtotal:", formatCurrency(subtotal), "Desconto (R$):", formatCurrency(valorDesconto), boldFont, normalFont);
+            addInfoRow(totaisTable, "Frete:", formatCurrency(quote.getShippingValue()), "Total Geral:", formatCurrency(totalGeral), boldFont, normalFont);
+            document.add(totaisTable);
+
+            if (quote.getComplemento() != null && !quote.getComplemento().isBlank()) {
+                Paragraph comp = new Paragraph("Observações: " + quote.getComplemento(), smallFont);
+                document.add(comp);
+            }
+
+            // Separador entre as cópias (apenas após a primeira)
+            if (copy == 0) {
+                document.add(new com.lowagie.text.pdf.draw.LineSeparator(0.5f, 100, Color.GRAY, Element.ALIGN_CENTER, -2));
+            }
         }
 
         document.close();
@@ -795,10 +828,11 @@ public class QuoteForm extends VBox {
                 quoteAtual.setComplemento(complementoField.getText());
                 quoteAtual.setItems(new ArrayList<>(itemsData));
                 
-                // Atualiza o cliente selecionado
+                // Atualiza o cliente selecionado (id e nome)
                 Cliente clienteSelecionado = clientComboBox.getSelectionModel().getSelectedItem();
                 if (clienteSelecionado != null) {
                     quoteAtual.setClientId(clienteSelecionado.getId());
+                    quoteAtual.setClientName(clienteSelecionado.getNome());
                 }
                 
                 // Salva ou atualiza o orçamento

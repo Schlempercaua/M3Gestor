@@ -23,7 +23,8 @@ public class QuoteDAO {
             stmt.setDate(4, Date.valueOf(quote.getDate()));
             stmt.setDouble(5, quote.getShippingValue());
             stmt.setDouble(6, quote.getTotalValue());
-            stmt.setString(7, quote.getComplemento());
+            stmt.setDouble(7, quote.getDiscount());
+            stmt.setString(8, quote.getComplemento());
             
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
@@ -152,6 +153,7 @@ stmt.setDouble(5, quote.getShippingValue());
         quote.setDate(rs.getDate("date").toLocalDate());
         quote.setShippingValue(rs.getDouble("shipping_value"));
         quote.setTotalValue(rs.getDouble("total_value"));
+        quote.setDiscount(rs.getDouble("discount"));
         quote.setComplemento(rs.getString("complemento"));
         
         // Carrega os itens do orçamento

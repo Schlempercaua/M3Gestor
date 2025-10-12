@@ -29,9 +29,10 @@ public class QuoteItem {
     }
     
     public void calculateTotal() {
-        // As medidas já estão em metros (ex: 0,50 para 50cm)
-        double cubicMeters = width * height * length;
-        this.total = cubicMeters * unitValue * quantity;
+        // Total baseado no novo cálculo de M3: quantidade * largura(cm) * altura(cm) / 10000
+        // Ou seja, M3 já considera a quantidade, portanto não multiplicar novamente por quantity aqui
+        double cubicMeters = getCubicMeters();
+        this.total = cubicMeters * unitValue;
     }
     
     // Getters and Setters
@@ -94,8 +95,9 @@ public class QuoteItem {
     
     // Calculate cubic meters
     public double getCubicMeters() {
-        // Already in cubic meters
-        return width * height * length;
+        // Novo cálculo: quantidade * largura(cm) * altura(cm) / 10000
+        // Resultado em m³ considerando largura e altura em cm e sem considerar o comprimento
+        return (quantity * width * height * length) / 10000.0;
     }
 
     /**
