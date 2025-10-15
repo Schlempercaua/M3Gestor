@@ -125,6 +125,46 @@ stmt.setDouble(5, quote.getShippingValue());
         
         return quotes;
     }
+
+    public List<Quote> listarPorCliente(int clientId) throws SQLException {
+        List<Quote> quotes = new ArrayList<>();
+        String sql = "SELECT * FROM quotes WHERE client_id = ? ORDER BY date DESC, id DESC;";
+
+        try (Connection conn = Conexao.conectar();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, clientId);
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                Quote quote = criarQuoteAPartirResultSet(rs);
+                quotes.add(quote);
+            }
+        }
+
+        return quotes;
+    }
+
+    public List<Quote> listarPorCliente(int clientId, int limit, int offset) throws SQLException {
+        List<Quote> quotes = new ArrayList<>();
+        String sql = "SELECT * FROM quotes WHERE client_id = ? ORDER BY date DESC, id DESC LIMIT ? OFFSET ?;";
+
+        try (Connection conn = Conexao.conectar();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, clientId);
+            stmt.setInt(2, Math.max(1, limit));
+            stmt.setInt(3, Math.max(0, offset));
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                Quote quote = criarQuoteAPartirResultSet(rs);
+                quotes.add(quote);
+            }
+        }
+
+        return quotes;
+    }
     
     public Quote buscarPorId(int id) throws SQLException {
         String sql = "SELECT * FROM quotes WHERE id = ?;";

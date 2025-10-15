@@ -193,6 +193,27 @@ public class QuoteForm extends VBox {
             }
         });
         
+        // Botão de histórico do cliente
+        Button historyButton = new Button("Histórico");
+        historyButton.setOnAction(e -> {
+            Cliente clienteSel = clientComboBox.getSelectionModel().getSelectedItem();
+            if (clienteSel == null && quoteAtual != null && quoteAtual.getClientId() > 0) {
+                try {
+                    clienteSel = clienteDAO.buscarPorId(quoteAtual.getClientId());
+                } catch (SQLException ex) {
+                    showAlert("Erro", "Não foi possível carregar o cliente: " + ex.getMessage(), Alert.AlertType.ERROR);
+                }
+            }
+            if (clienteSel == null) {
+                showAlert("Atenção", "Selecione um cliente para ver o histórico.", Alert.AlertType.INFORMATION);
+                return;
+            }
+            PurchaseHistoryDialog dialog = new PurchaseHistoryDialog(clienteSel);
+            dialog.showAndWait();
+        });
+
+        HBox clientBox = new HBox(10, clientComboBox, historyButton);
+
         // Add fields to grid
         infoGrid.add(nameLabel, 0, 0);
         infoGrid.add(quoteNameField, 0, 1);
@@ -201,7 +222,7 @@ public class QuoteForm extends VBox {
         infoGrid.add(discountLabel, 2, 0);
         infoGrid.add(discountField, 2, 1);
         infoGrid.add(clientLabel, 0, 2);
-        infoGrid.add(clientComboBox, 0, 3, 3, 1);
+        infoGrid.add(clientBox, 0, 3, 3, 1);
         infoGrid.add(complementoLabel, 0, 4);
         infoGrid.add(complementoField, 0, 5, 3, 1);
         
