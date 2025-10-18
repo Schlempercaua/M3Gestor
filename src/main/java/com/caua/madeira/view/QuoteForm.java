@@ -54,6 +54,7 @@ public class QuoteForm extends VBox {
     private TextArea complementoField;
     private ComboBox<Cliente> clientComboBox;
     private Label totalItensLabel;
+    private Label totalM3Label;
     private Label totalGeralLabel;
     private TableView<QuoteItem> itemsTable;
     private ObservableList<QuoteItem> itemsData;
@@ -271,6 +272,10 @@ public class QuoteForm extends VBox {
         totalItensTextLabel.setStyle("-fx-font-weight: bold;");
         totalItensLabel = new Label("R$ 0,00");
         totalItensLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #2e7d32;");
+        Label totalM3TextLabel = new Label("TOTAL M3:");
+        totalM3TextLabel.setStyle("-fx-font-weight: bold;");
+        totalM3Label = new Label("0,000");
+        totalM3Label.setStyle("-fx-font-weight: bold; -fx-text-fill: #2e7d32;");
         
         Label freteTextLabel = new Label("FRETE:");
         freteTextLabel.setStyle("-fx-font-weight: bold;");
@@ -283,21 +288,24 @@ public class QuoteForm extends VBox {
         // Adiciona os elementos ao grid de totais
         totaisGrid.add(totalItensTextLabel, 0, 0);
         totaisGrid.add(totalItensLabel, 1, 0);
+        totaisGrid.add(totalM3TextLabel, 0, 1);
+        totaisGrid.add(totalM3Label, 1, 1);
         
         // Remove o shippingValueField do grid de totais
         // pois ele já está no formulário principal
         
-        totaisGrid.add(totalGeralTextLabel, 0, 1);
-        totaisGrid.add(totalGeralLabel, 1, 1);
+        totaisGrid.add(totalGeralTextLabel, 0, 2);
+        totaisGrid.add(totalGeralLabel, 1, 2);
         
         // Ajusta o alinhamento à direita para os valores
         GridPane.setHalignment(totalItensLabel, HPos.RIGHT);
+        GridPane.setHalignment(totalM3Label, HPos.RIGHT);
         GridPane.setHalignment(totalGeralLabel, HPos.RIGHT);
         
         // Adiciona um separador visual
         javafx.scene.control.Separator separator = new javafx.scene.control.Separator();
         GridPane.setColumnSpan(separator, 2);
-        totaisGrid.add(separator, 0, 2, 2, 1);
+        totaisGrid.add(separator, 0, 3, 2, 1);
         
         // Configura o campo de frete para atualizar os totais quando alterado
         shippingValueField.textProperty().addListener((obs, oldValue, newValue) -> {
@@ -473,8 +481,14 @@ public class QuoteForm extends VBox {
         double totalItens = itemsData.stream()
                 .mapToDouble(QuoteItem::getTotal)
                 .sum();
+        double totalM3 = itemsData.stream()
+                .mapToDouble(QuoteItem::getCubicMeters)
+                .sum();
         
         totalItensLabel.setText(String.format("Total dos Itens: R$ %.2f", totalItens));
+        if (totalM3Label != null) {
+            totalM3Label.setText(String.format("%.3f", totalM3).replace('.', ','));
+        }
         
         double frete = 0.0;
         double desconto = 0.0;
@@ -553,107 +567,70 @@ public class QuoteForm extends VBox {
         for (int copy = 0; copy < 2; copy++) {
             // Cabeçalho com título
             Paragraph aviso1 = new Paragraph("DOCUMENTO AUXILIAR DE VENDA - ORÇAMENTO", titleFont);
-            aviso1.setAlignment(Element.ALIGN_LEFT);
-            aviso1.setSpacingAfter(2f);
+            aviso1.setAlignment(Element.ALIGN_CENTER);
+            aviso1.setSpacingAfter(0.5f);
             document.add(aviso1);
 
-            // Bloco com logo e dados da empresa
-            PdfPTable headerTable = new PdfPTable(new float[]{0.7f, 3.3f});
+            // Bloco centralizado com nome da empresa e logo abaixo
+            PdfPTable headerTable = new PdfPTable(1);
             headerTable.setWidthPercentage(100);
-            headerTable.setHorizontalAlignment(Element.ALIGN_LEFT);
-            // garantir alinhamento à esquerda para todas as células por padrão
+            headerTable.setHorizontalAlignment(Element.ALIGN_CENTER);
             headerTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
-            headerTable.getDefaultCell().setHorizontalAlignment(Element.ALIGN_LEFT);
-            headerTable.getDefaultCell().setVerticalAlignment(Element.ALIGN_TOP);
+            headerTable.getDefaultCell().setHorizontalAlignment(Element.ALIGN_CENTER);
+            headerTable.getDefaultCell().setVerticalAlignment(Element.ALIGN_MIDDLE);
 
-            // Logo (opcional)
-            PdfPCell logoCell;
+            // Nome da empresa (centralizado)
+            String empresaRazao = "Madeireira Pai e Filhos LTDA";
+            PdfPCell nomeCell = new PdfPCell(new Phrase(empresaRazao, titleFont));
+            nomeCell.setBorder(Rectangle.NO_BORDER);
+            nomeCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            nomeCell.setPaddingBottom(0.2f);
+            headerTable.addCell(nomeCell);
+
+            // Logo (opcional) abaixo do nome
             Image logoImg = carregarLogoOpcional();
             if (logoImg != null) {
-                logoImg.scaleToFit(60, 60);
-                logoCell = new PdfPCell(logoImg, false);
-            } else {
-                logoCell = new PdfPCell(new Phrase(""));
-                logoCell.setMinimumHeight(40);
+                logoImg.scaleToFit(80, 80);
+                PdfPCell logoCell = new PdfPCell(logoImg, false);
+                logoCell.setBorder(Rectangle.NO_BORDER);
+                logoCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                logoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+                headerTable.addCell(logoCell);
             }
-            logoCell.setBorder(Rectangle.NO_BORDER);
-            logoCell.setHorizontalAlignment(Element.ALIGN_LEFT);
-            logoCell.setPaddingRight(4f);
-            logoCell.setVerticalAlignment(Element.ALIGN_TOP);
-            headerTable.addCell(logoCell);
-
-            // Dados da empresa (ajuste aqui conforme necessário)
-            String empresaRazao = "Madeireira Pai e Filhos LTDA";
-            String empresaCnpj = "CNPJ: 10.947.731/0001-00";
-            String empresaEnd = "Endereço: Rodovia Br 282 Km 106 - Aguas Frias";
-            String empresaCidade = "Cidade: Alfredo Wagner - SC - 88450-000";
-            String empresaFone = "Telefone: (48) 99125-2582 / (48) 98835-4417";
-
-            // Usar uma tabela interna de 1 coluna para garantir alinhamento à esquerda
-            PdfPTable empresaInfoTable = new PdfPTable(1);
-            empresaInfoTable.setWidthPercentage(100);
-            empresaInfoTable.setHorizontalAlignment(Element.ALIGN_LEFT);
-            empresaInfoTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
-            empresaInfoTable.getDefaultCell().setHorizontalAlignment(Element.ALIGN_LEFT);
-            empresaInfoTable.getDefaultCell().setPadding(0f);
-
-            PdfPCell l1 = new PdfPCell(new Phrase(empresaRazao, titleFont));
-            l1.setBorder(Rectangle.NO_BORDER);
-            l1.setHorizontalAlignment(Element.ALIGN_LEFT);
-            l1.setPadding(0f);
-            empresaInfoTable.addCell(l1);
-
-            PdfPCell l2 = new PdfPCell(new Phrase(empresaRazao, normalFont));
-            l2.setBorder(Rectangle.NO_BORDER);
-            l2.setHorizontalAlignment(Element.ALIGN_LEFT);
-            l2.setPadding(0f);
-            empresaInfoTable.addCell(l2);
-
-            PdfPCell l3 = new PdfPCell(new Phrase(empresaCnpj, normalFont));
-            l3.setBorder(Rectangle.NO_BORDER);
-            l3.setHorizontalAlignment(Element.ALIGN_LEFT);
-            l3.setPadding(0f);
-            empresaInfoTable.addCell(l3);
-
-            PdfPCell l4 = new PdfPCell(new Phrase(empresaEnd, normalFont));
-            l4.setBorder(Rectangle.NO_BORDER);
-            l4.setHorizontalAlignment(Element.ALIGN_LEFT);
-            l4.setPadding(0f);
-            empresaInfoTable.addCell(l4);
-
-            PdfPCell l4a = new PdfPCell(new Phrase(empresaCidade, normalFont));
-            l4a.setBorder(Rectangle.NO_BORDER);
-            l4a.setHorizontalAlignment(Element.ALIGN_LEFT);
-            l4a.setPadding(0f);
-            empresaInfoTable.addCell(l4a);
-
-            PdfPCell l5 = new PdfPCell(new Phrase(empresaFone, normalFont));
-            l5.setBorder(Rectangle.NO_BORDER);
-            l5.setHorizontalAlignment(Element.ALIGN_LEFT);
-            l5.setPadding(0f);
-            empresaInfoTable.addCell(l5);
-
-            PdfPCell empresaCell = new PdfPCell(empresaInfoTable);
-            empresaCell.setBorder(Rectangle.NO_BORDER);
-            empresaCell.setHorizontalAlignment(Element.ALIGN_LEFT);
-            empresaCell.setVerticalAlignment(Element.ALIGN_TOP);
-            empresaCell.setPadding(0f);
-            headerTable.addCell(empresaCell);
 
             headerTable.setSpacingAfter(2f);
             document.add(headerTable);
 
-            // Bloco cliente
-            PdfPTable clienteTable = new PdfPTable(new float[]{1.2f, 3.8f});
+            // Bloco cliente (mais informações por linha)
+            PdfPTable clienteTable = new PdfPTable(new float[]{1.0f, 3.0f, 1.0f, 2.5f});
             clienteTable.setWidthPercentage(100);
             clienteTable.getDefaultCell().setPadding(1f);
-            clienteTable.setSpacingAfter(2f);
-            addInfoRowFull(clienteTable, "Identificação do Solicitante", "", boldFont, normalFont, Color.LIGHT_GRAY);
-            addInfoRowFull(clienteTable, "Cliente:", valorOuVazio(cliente != null ? cliente.getNome() : quote.getClientName()), boldFont, normalFont, null);
-            addInfoRowFull(clienteTable, "CPF/CNPJ:", valorOuVazio(cliente != null ? cliente.getDocumento() : ""), boldFont, normalFont, null);
-            addInfoRowFull(clienteTable, "Endereço:", valorOuVazio(cliente != null ? cliente.getEndereco() : ""), boldFont, normalFont, null);
-            addInfoRowFull(clienteTable, "Telefone:", valorOuVazio(cliente != null ? cliente.getTelefone() : ""), boldFont, normalFont, null);
-            addInfoRowFull(clienteTable, "E-mail:", valorOuVazio(cliente != null ? cliente.getEmail() : ""), boldFont, normalFont, null);
+            clienteTable.setSpacingAfter(6f);
+
+            // Cabeçalho da seção (ocupa todas as colunas)
+            PdfPCell secHeader = new PdfPCell(new Phrase("Identificação do Solicitante", boldFont));
+            secHeader.setBackgroundColor(Color.LIGHT_GRAY);
+            secHeader.setColspan(4);
+            clienteTable.addCell(secHeader);
+
+            // Linha 1: Cliente | valor   CPF/CNPJ | valor
+            clienteTable.addCell(new PdfPCell(new Phrase("Cliente:", boldFont)));
+            clienteTable.addCell(new PdfPCell(new Phrase(valorOuVazio(cliente != null ? cliente.getNome() : quote.getClientName()), normalFont)));
+            clienteTable.addCell(new PdfPCell(new Phrase("CPF/CNPJ:", boldFont)));
+            clienteTable.addCell(new PdfPCell(new Phrase(valorOuVazio(cliente != null ? cliente.getDocumento() : ""), normalFont)));
+
+            // Linha 2: Endereço | valor   Telefone | valor
+            clienteTable.addCell(new PdfPCell(new Phrase("Endereço:", boldFont)));
+            clienteTable.addCell(new PdfPCell(new Phrase(valorOuVazio(cliente != null ? cliente.getEndereco() : ""), normalFont)));
+            clienteTable.addCell(new PdfPCell(new Phrase("Telefone:", boldFont)));
+            clienteTable.addCell(new PdfPCell(new Phrase(valorOuVazio(cliente != null ? cliente.getTelefone() : ""), normalFont)));
+
+            // Linha 3: E-mail | valor (valor ocupa as 3 colunas seguintes)
+            clienteTable.addCell(new PdfPCell(new Phrase("E-mail:", boldFont)));
+            PdfPCell emailValue = new PdfPCell(new Phrase(valorOuVazio(cliente != null ? cliente.getEmail() : ""), normalFont));
+            emailValue.setColspan(3);
+            clienteTable.addCell(emailValue);
+
             document.add(clienteTable);
 
             // Tabela de itens
@@ -661,6 +638,8 @@ public class QuoteForm extends VBox {
             itensTable.setWidthPercentage(100);
             itensTable.getDefaultCell().setPadding(1f);
             itensTable.setSpacingAfter(2f);
+            // Centraliza todo o conteúdo das células por padrão
+            itensTable.getDefaultCell().setHorizontalAlignment(Element.ALIGN_CENTER);
             addHeaderCell(itensTable, "QUANT.", boldFont);
             addHeaderCell(itensTable, "LARGURA (cm)", boldFont);
             addHeaderCell(itensTable, "ALTURA (cm)", boldFont);
@@ -670,6 +649,7 @@ public class QuoteForm extends VBox {
             addHeaderCell(itensTable, "TOTAL (R$)", boldFont);
 
             double subtotal = 0.0;
+            double totalM3Pdf = 0.0;
             if (quote.getItems() != null) {
                 for (QuoteItem item : quote.getItems()) {
                     itensTable.addCell(new Phrase(String.valueOf(item.getQuantity()), normalFont));
@@ -680,8 +660,33 @@ public class QuoteForm extends VBox {
                     itensTable.addCell(new Phrase(String.format("%.2f", item.getUnitValue()).replace('.', ','), normalFont));
                     itensTable.addCell(new Phrase(String.format("R$ %.2f", item.getTotal()).replace('.', ','), normalFont));
                     subtotal += item.getTotal();
+                    totalM3Pdf += item.getCubicMeters();
                 }
             }
+
+            // Rodapé com total de M3 e Subtotal sob as colunas correspondentes
+            Font footerBold = boldFont;
+            Color footerBg = Color.LIGHT_GRAY;
+            // QUANT, LARGURA, ALTURA, COMPRIMENTO -> células vazias
+            for (int i = 0; i < 4; i++) {
+                PdfPCell empty = new PdfPCell(new Phrase("", footerBold));
+                empty.setBackgroundColor(footerBg);
+                itensTable.addCell(empty);
+            }
+            // M3 total
+            PdfPCell m3TotalCell = new PdfPCell(new Phrase(String.format("%.3f", totalM3Pdf).replace('.', ','), footerBold));
+            m3TotalCell.setBackgroundColor(footerBg);
+            m3TotalCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            itensTable.addCell(m3TotalCell);
+            // UNIT vazio
+            PdfPCell unitEmpty = new PdfPCell(new Phrase("", footerBold));
+            unitEmpty.setBackgroundColor(footerBg);
+            itensTable.addCell(unitEmpty);
+            // TOTAL subtotal
+            PdfPCell subtotalCell = new PdfPCell(new Phrase(String.format("R$ %.2f", subtotal).replace('.', ','), footerBold));
+            subtotalCell.setBackgroundColor(footerBg);
+            subtotalCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            itensTable.addCell(subtotalCell);
             document.add(itensTable);
 
             // Totais
@@ -690,27 +695,48 @@ public class QuoteForm extends VBox {
             double subtotalComDesconto = subtotal - valorDesconto;
             double totalGeral = subtotalComDesconto + quote.getShippingValue();
 
-            // Tabela de totais com largura da coluna de valores igual à coluna TOTAL (R$) da tabela de itens
+            // Tabela de totais alinhada aos 2 últimos campos (UNIT e TOTAL) da tabela de itens
             float availableWidth = (float) (document.getPageSize().getWidth() - document.leftMargin() - document.rightMargin());
             float[] itemCols = new float[]{0.9f, 1.2f, 1.2f, 1.5f, 1.0f, 1.5f, 1.3f};
             float sum = 0f; for (float v : itemCols) sum += v;
-            float totalColWidth = availableWidth * (1.3f / sum); // 1.3f = proporção da coluna TOTAL (R$)
-
-            // Mantém proporção 3:1 (rótulo:valor), mas fixa a coluna de valores para igualar ao TOTAL (R$)
-            float a = 3f, b = 1f;
-            float totaisTotalWidth = totalColWidth * ((a + b) / b);
-            float labelAbs = totaisTotalWidth * (a / (a + b));
-            float valueAbs = totaisTotalWidth * (b / (a + b)); // deve ser igual a totalColWidth
+            float unitColWidth = availableWidth * (1.5f / sum);   // largura da coluna VALOR UND. (R$/m³)
+            float totalColWidth = availableWidth * (1.3f / sum);  // largura da coluna TOTAL (R$)
 
             PdfPTable totaisTable = new PdfPTable(2);
-            totaisTable.setTotalWidth(new float[]{labelAbs, valueAbs});
+            totaisTable.setTotalWidth(new float[]{unitColWidth, totalColWidth});
             totaisTable.setLockedWidth(true);
             totaisTable.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            totaisTable.getDefaultCell().setPadding(1f);
-            totaisTable.setSpacingAfter(1f);
+            totaisTable.getDefaultCell().setPadding(0.5f);
+            totaisTable.setSpacingAfter(0.5f);
 
             addInfoRow(totaisTable, "Subtotal:", formatCurrency(subtotal), "Desconto (R$):", formatCurrency(valorDesconto), boldFont, normalFont);
-            addInfoRow(totaisTable, "Frete:", formatCurrency(quote.getShippingValue()), "Total Geral:", formatCurrency(totalGeral), boldFont, normalFont);
+
+            // Linha "Frete" (normal)
+            PdfPCell freteLabel = new PdfPCell(new Phrase("Frete:", boldFont));
+            PdfPCell freteValue = new PdfPCell(new Phrase(formatCurrency(quote.getShippingValue()), normalFont));
+            totaisTable.addCell(freteLabel);
+            totaisTable.addCell(freteValue);
+
+            // Linha "Total Geral" destacada
+            Font totalLabelFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9);
+            totalLabelFont.setColor(Color.WHITE);
+            Font totalValueFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9);
+            totalValueFont.setColor(Color.WHITE);
+            Color highlightBg = new Color(46, 125, 50); // #2e7d32
+
+            PdfPCell totalLabelCell = new PdfPCell(new Phrase("Total Geral:", totalLabelFont));
+            totalLabelCell.setBackgroundColor(highlightBg);
+            totalLabelCell.setBorderWidthTop(1.5f);
+            totalLabelCell.setPadding(2f);
+
+            PdfPCell totalValueCell = new PdfPCell(new Phrase(formatCurrency(totalGeral), totalValueFont));
+            totalValueCell.setBackgroundColor(highlightBg);
+            totalValueCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            totalValueCell.setBorderWidthTop(1.5f);
+            totalValueCell.setPadding(2f);
+
+            totaisTable.addCell(totalLabelCell);
+            totaisTable.addCell(totalValueCell);
             document.add(totaisTable);
 
             if (quote.getComplemento() != null && !quote.getComplemento().isBlank()) {
