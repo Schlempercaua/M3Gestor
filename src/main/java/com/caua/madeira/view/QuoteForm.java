@@ -553,7 +553,8 @@ public class QuoteForm extends VBox {
         // Arquivo temporário
         Path temp = Files.createTempFile("orcamento-" + quote.getId() + "-", ".pdf");
 
-        Document document = new Document(PageSize.A4, 12, 12, 12, 12);
+        // Reduz a margem superior para aproveitar melhor o espaço
+        Document document = new Document(PageSize.A4, 12, 12, 6, 12);
         PdfWriter.getInstance(document, Files.newOutputStream(temp, StandardOpenOption.TRUNCATE_EXISTING));
         document.open();
 
@@ -562,43 +563,95 @@ public class QuoteForm extends VBox {
         Font boldFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 7);
         Font normalFont = FontFactory.getFont(FontFactory.HELVETICA, 7);
         Font smallFont = FontFactory.getFont(FontFactory.HELVETICA, 7);
+        // Fontes de destaque para cabeçalho
+        Font headerLabelFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
+        Font headerValueFont = FontFactory.getFont(FontFactory.HELVETICA, 10);
+        // Fontes do bloco à direita do cabeçalho (mais destaque)
+        Font headerRightTitleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16);
+        headerRightTitleFont.setColor(new Color(46, 125, 50)); // verde da identidade
+        Font headerRightSubFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11);
 
         // Duas cópias do orçamento na mesma página
         for (int copy = 0; copy < 2; copy++) {
-            // Cabeçalho com título
-            Paragraph aviso1 = new Paragraph("DOCUMENTO AUXILIAR DE VENDA - ORÇAMENTO", titleFont);
-            aviso1.setAlignment(Element.ALIGN_CENTER);
-            aviso1.setSpacingAfter(0.5f);
-            document.add(aviso1);
-
-            // Bloco centralizado com nome da empresa e logo abaixo
-            PdfPTable headerTable = new PdfPTable(1);
+            // Cabeçalho: logo (esq), informações (centro) e identificação (dir)
+            // Aumenta ligeiramente a coluna da logo e cria mais "respiro" para o bloco central
+            PdfPTable headerTable = new PdfPTable(new float[]{1.4f, 2.8f, 1.3f});
             headerTable.setWidthPercentage(100);
-            headerTable.setHorizontalAlignment(Element.ALIGN_CENTER);
+            headerTable.setHorizontalAlignment(Element.ALIGN_LEFT);
             headerTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
-            headerTable.getDefaultCell().setHorizontalAlignment(Element.ALIGN_CENTER);
-            headerTable.getDefaultCell().setVerticalAlignment(Element.ALIGN_MIDDLE);
 
-            // Nome da empresa (centralizado)
-            String empresaRazao = "Madeireira Pai e Filhos LTDA";
-            PdfPCell nomeCell = new PdfPCell(new Phrase(empresaRazao, titleFont));
-            nomeCell.setBorder(Rectangle.NO_BORDER);
-            nomeCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-            nomeCell.setPaddingBottom(0.2f);
-            headerTable.addCell(nomeCell);
-
-            // Logo (opcional) abaixo do nome
+            // Coluna da logo (esquerda)
             Image logoImg = carregarLogoOpcional();
+            PdfPCell logoCell;
             if (logoImg != null) {
-                logoImg.scaleToFit(80, 80);
-                PdfPCell logoCell = new PdfPCell(logoImg, false);
-                logoCell.setBorder(Rectangle.NO_BORDER);
-                logoCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-                logoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
-                headerTable.addCell(logoCell);
+                logoImg.scaleToFit(140, 140);
+                logoCell = new PdfPCell(logoImg, false);
+            } else {
+                logoCell = new PdfPCell(new Phrase("", normalFont));
             }
+            logoCell.setBorder(Rectangle.NO_BORDER);
+            logoCell.setHorizontalAlignment(Element.ALIGN_LEFT);
+            logoCell.setVerticalAlignment(Element.ALIGN_TOP); // alinha o topo com "Orçamento"
+            logoCell.setPadding(0f);
+            logoCell.setPaddingRight(18f); // mais separação entre a logo e o bloco central
+            headerTable.addCell(logoCell);
 
-            headerTable.setSpacingAfter(2f);
+            // Coluna das informações (centro) mais organizada e destacada
+            PdfPTable infoTable = new PdfPTable(new float[]{1.5f, 3.1f});
+            infoTable.setWidthPercentage(100);
+            infoTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
+
+            PdfPCell l1 = new PdfPCell(new Phrase("E-mail:", headerLabelFont));
+            l1.setBorder(Rectangle.NO_BORDER);
+            PdfPCell v1 = new PdfPCell(new Phrase("madpaiefilhos@hotmail.com", headerValueFont));
+            v1.setBorder(Rectangle.NO_BORDER);
+            infoTable.addCell(l1); infoTable.addCell(v1);
+
+            PdfPCell l2 = new PdfPCell(new Phrase("Telefone:", headerLabelFont));
+            l2.setBorder(Rectangle.NO_BORDER);
+            PdfPCell v2 = new PdfPCell(new Phrase("(48) 991252582", headerValueFont));
+            v2.setBorder(Rectangle.NO_BORDER);
+            infoTable.addCell(l2); infoTable.addCell(v2);
+
+            PdfPCell l3 = new PdfPCell(new Phrase("Cidade:", headerLabelFont));
+            l3.setBorder(Rectangle.NO_BORDER);
+            PdfPCell v3 = new PdfPCell(new Phrase("Alfredo Wagner - 88450-000", headerValueFont));
+            v3.setBorder(Rectangle.NO_BORDER);
+            infoTable.addCell(l3); infoTable.addCell(v3);
+
+            PdfPCell l4 = new PdfPCell(new Phrase("Endereço:", headerLabelFont));
+            l4.setBorder(Rectangle.NO_BORDER);
+            PdfPCell v4 = new PdfPCell(new Phrase("BR 282 - km 106 - Águas Frias", headerValueFont));
+            v4.setBorder(Rectangle.NO_BORDER);
+            infoTable.addCell(l4); infoTable.addCell(v4);
+
+            PdfPCell infoCell = new PdfPCell(infoTable);
+            // Remove a borda e o fundo para ficar mais natural
+            infoCell.setBorder(Rectangle.NO_BORDER);
+            infoCell.setHorizontalAlignment(Element.ALIGN_LEFT);
+            infoCell.setVerticalAlignment(Element.ALIGN_TOP); // alinha o topo com "Orçamento"
+            infoCell.setPadding(0f);
+            infoCell.setPaddingTop(2f);
+            infoCell.setPaddingLeft(18f); // mais espaço entre logo e informações
+            headerTable.addCell(infoCell);
+
+            // Coluna direita: "Orçamento" e "Data: ___/___/_____"
+            Paragraph rightBlock = new Paragraph();
+            rightBlock.setAlignment(Element.ALIGN_RIGHT);
+            rightBlock.setLeading(16f); // aumenta o espaçamento entre linhas
+            rightBlock.add(new Phrase("Orçamento\n\n", headerRightTitleFont)); // linha extra para dar mais distância
+            rightBlock.add(new Phrase("Data: ___/___/_____", headerRightSubFont));
+
+            PdfPCell rightCell = new PdfPCell(rightBlock);
+            rightCell.setBorder(Rectangle.NO_BORDER);
+            rightCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            rightCell.setVerticalAlignment(Element.ALIGN_TOP);
+            rightCell.setPaddingRight(2f);
+            rightCell.setPaddingTop(2f); // pequeno respiro superior
+            headerTable.addCell(rightCell);
+
+            headerTable.setSpacingBefore(0f); // sem espaço extra acima do cabeçalho
+            headerTable.setSpacingAfter(10f);
             document.add(headerTable);
 
             // Bloco cliente (mais informações por linha)
@@ -650,6 +703,7 @@ public class QuoteForm extends VBox {
 
             double subtotal = 0.0;
             double totalM3Pdf = 0.0;
+            int renderedRows = 0;
             if (quote.getItems() != null) {
                 for (QuoteItem item : quote.getItems()) {
                     itensTable.addCell(new Phrase(String.valueOf(item.getQuantity()), normalFont));
@@ -661,7 +715,20 @@ public class QuoteForm extends VBox {
                     itensTable.addCell(new Phrase(String.format("R$ %.2f", item.getTotal()).replace('.', ','), normalFont));
                     subtotal += item.getTotal();
                     totalM3Pdf += item.getCubicMeters();
+                    renderedRows++;
                 }
+            }
+
+            // Preenche com linhas marcadas com "---" até atingir 17 linhas
+            int minRows = 17;
+            for (int i = renderedRows; i < minRows; i++) {
+                itensTable.addCell(new Phrase("---", normalFont)); // QUANT
+                itensTable.addCell(new Phrase("---", normalFont)); // LARGURA
+                itensTable.addCell(new Phrase("---", normalFont)); // ALTURA
+                itensTable.addCell(new Phrase("---", normalFont)); // COMPRIMENTO
+                itensTable.addCell(new Phrase("---", normalFont)); // M3
+                itensTable.addCell(new Phrase("---", normalFont)); // VALOR UND
+                itensTable.addCell(new Phrase("---", normalFont)); // TOTAL
             }
 
             // Rodapé com total de M3 e Subtotal sob as colunas correspondentes
