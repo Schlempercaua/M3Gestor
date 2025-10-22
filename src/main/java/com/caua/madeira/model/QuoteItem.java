@@ -2,6 +2,7 @@ package com.caua.madeira.model;
 
 public class QuoteItem {
     private String id;
+    private String code;
     private int quantity;
     private double width;
     private double height;
@@ -16,6 +17,7 @@ public class QuoteItem {
         this.length = 0.0;
         this.unitValue = 0.0;
         this.total = 0.0;
+        this.code = "";
     }
     
     public QuoteItem(String id, int quantity, double width, double height, double length, double unitValue) {
@@ -42,6 +44,14 @@ public class QuoteItem {
     
     public void setId(String id) {
         this.id = id;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public void setCode(String code) {
+        this.code = code;
     }
     
     public int getQuantity() {

@@ -29,6 +29,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.util.converter.IntegerStringConverter;
+import javafx.util.StringConverter;
 
 // OpenPDF
 import com.lowagie.text.*;
@@ -64,6 +65,7 @@ public class QuoteForm extends VBox {
     private Quote quoteAtual;
     private final Runnable onSaveCallback;
     private Button deleteButton;
+    private ObservableList<Cliente> allClients;
     
     public QuoteForm(Runnable onSaveCallback) {
         this.quoteDAO = new QuoteDAO();
@@ -108,7 +110,19 @@ public class QuoteForm extends VBox {
     private void carregarClientes() {
         try {
             List<Cliente> clientes = clienteDAO.listarTodos();
-            clientComboBox.getItems().setAll(clientes);
+            if (allClients == null) {
+                allClients = FXCollections.observableArrayList();
+            }
+            allClients.setAll(clientes);
+            // Se já houver um orçamento com cliente definido, seleciona-o na ComboBox
+            if (quoteAtual != null && quoteAtual.getClientId() > 0) {
+                for (Cliente c : allClients) {
+                    if (c.getId() == quoteAtual.getClientId()) {
+                        clientComboBox.getSelectionModel().select(c);
+                        break;
+                    }
+                }
+            }
         } catch (SQLException e) {
             showAlert("Erro", "Erro ao carregar clientes: " + e.getMessage(), Alert.AlertType.ERROR);
         }
@@ -173,26 +187,50 @@ public class QuoteForm extends VBox {
         clientComboBox.setPromptText("Selecione um cliente");
         clientComboBox.setPrefWidth(300);
         
+        // Initialize client list
+        allClients = FXCollections.observableArrayList();
+        clientComboBox.setItems(allClients);
+        
+        // Set up the StringConverter for the ComboBox
+        clientComboBox.setConverter(new StringConverter<Cliente>() {
+            @Override
+            public String toString(Cliente c) {
+                return c != null && c.getNome() != null ? c.getNome() : "";
+            }
+            
+            @Override
+            public Cliente fromString(String string) {
+                return null; // Not used for non-editable ComboBox
+            }
+        });
+        
+        // Make ComboBox non-editable
+        clientComboBox.setEditable(false);
+        
+        // Custom cell factory to show only the name
+        clientComboBox.setCellFactory(lv -> new ListCell<Cliente>() {
+            @Override
+            protected void updateItem(Cliente cliente, boolean empty) {
+                super.updateItem(cliente, empty);
+                setText(empty || cliente == null ? "" : (cliente.getNome() != null ? cliente.getNome() : ""));
+            }
+        });
+
+        // Configure button cell to show only the name
+        clientComboBox.setButtonCell(new ListCell<Cliente>() {
+            @Override
+            protected void updateItem(Cliente cliente, boolean empty) {
+                super.updateItem(cliente, empty);
+                setText(empty || cliente == null ? "" : (cliente.getNome() != null ? cliente.getNome() : ""));
+            }
+        });
+
         // Complemento
         Label complementoLabel = new Label("COMPLEMENTO");
         complementoField = new TextArea();
         complementoField.setPromptText("Informações adicionais sobre o orçamento");
         complementoField.setPrefRowCount(3);
         complementoField.setWrapText(true);
-        clientComboBox.setCellFactory(lv -> new ListCell<Cliente>() {
-            @Override
-            protected void updateItem(Cliente cliente, boolean empty) {
-                super.updateItem(cliente, empty);
-                setText(empty ? null : cliente.getNome());
-            }
-        });
-        clientComboBox.setButtonCell(new ListCell<Cliente>() {
-            @Override
-            protected void updateItem(Cliente cliente, boolean empty) {
-                super.updateItem(cliente, empty);
-                setText(empty ? null : (cliente != null ? cliente.getNome() : ""));
-            }
-        });
         
         // Botão de histórico do cliente
         Button historyButton = new Button("Histórico");
@@ -324,10 +362,15 @@ public class QuoteForm extends VBox {
         itemsTable.setEditable(true);
         itemsTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         
-        // ID column (não editável)
-        TableColumn<QuoteItem, String> idCol = new TableColumn<>("ID");
-        idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
-        idCol.setPrefWidth(50);
+        // Code column (editável)
+        TableColumn<QuoteItem, String> codeCol = new TableColumn<>("COD");
+        codeCol.setCellValueFactory(new PropertyValueFactory<>("code"));
+        codeCol.setCellFactory(TextFieldTableCell.forTableColumn());
+        codeCol.setOnEditCommit(event -> {
+            QuoteItem item = event.getRowValue();
+            item.setCode(event.getNewValue());
+        });
+        codeCol.setPrefWidth(90);
         
         // Quantity column (editável)
         TableColumn<QuoteItem, Integer> quantityCol = new TableColumn<>("QUANT");
@@ -425,6 +468,7 @@ public class QuoteForm extends VBox {
         
         // Configura a tabela
         itemsTable.getColumns().clear();
+        itemsTable.getColumns().add(codeCol);
         itemsTable.getColumns().add(quantityCol);
         itemsTable.getColumns().add(widthCol);
         itemsTable.getColumns().add(heightCol);
@@ -558,11 +602,9 @@ public class QuoteForm extends VBox {
         PdfWriter.getInstance(document, Files.newOutputStream(temp, StandardOpenOption.TRUNCATE_EXISTING));
         document.open();
 
-        // Fontes
-        Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
-        Font boldFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 7);
-        Font normalFont = FontFactory.getFont(FontFactory.HELVETICA, 7);
-        Font smallFont = FontFactory.getFont(FontFactory.HELVETICA, 7);
+        // Configuração de fontes
+        Font normalFont = FontFactory.getFont(FontFactory.HELVETICA, 10);
+        Font boldFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
         // Fontes de destaque para cabeçalho
         Font headerLabelFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
         Font headerValueFont = FontFactory.getFont(FontFactory.HELVETICA, 10);
@@ -659,40 +701,45 @@ public class QuoteForm extends VBox {
             clienteTable.setWidthPercentage(100);
             clienteTable.getDefaultCell().setPadding(1f);
             clienteTable.setSpacingAfter(6f);
+            // Aumenta a fonte desta seção para igualar aos dados do cabeçalho (labels/valores 10)
+            Font boldFontCliHeader = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
+            Font boldFontCli = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
+            Font normalFontCli = FontFactory.getFont(FontFactory.HELVETICA, 10);
 
             // Cabeçalho da seção (ocupa todas as colunas)
-            PdfPCell secHeader = new PdfPCell(new Phrase("Identificação do Solicitante", boldFont));
+            PdfPCell secHeader = new PdfPCell(new Phrase("Identificação do Solicitante", boldFontCliHeader));
             secHeader.setBackgroundColor(Color.LIGHT_GRAY);
             secHeader.setColspan(4);
             clienteTable.addCell(secHeader);
 
             // Linha 1: Cliente | valor   CPF/CNPJ | valor
-            clienteTable.addCell(new PdfPCell(new Phrase("Cliente:", boldFont)));
-            clienteTable.addCell(new PdfPCell(new Phrase(valorOuVazio(cliente != null ? cliente.getNome() : quote.getClientName()), normalFont)));
-            clienteTable.addCell(new PdfPCell(new Phrase("CPF/CNPJ:", boldFont)));
-            clienteTable.addCell(new PdfPCell(new Phrase(valorOuVazio(cliente != null ? cliente.getDocumento() : ""), normalFont)));
+            clienteTable.addCell(new PdfPCell(new Phrase("Cliente:", boldFontCli)));
+            clienteTable.addCell(new PdfPCell(new Phrase(valorOuVazio(cliente != null ? cliente.getNome() : quote.getClientName()), normalFontCli)));
+            clienteTable.addCell(new PdfPCell(new Phrase("CPF/CNPJ:", boldFontCli)));
+            clienteTable.addCell(new PdfPCell(new Phrase(valorOuVazio(cliente != null ? cliente.getDocumento() : ""), normalFontCli)));
 
             // Linha 2: Endereço | valor   Telefone | valor
-            clienteTable.addCell(new PdfPCell(new Phrase("Endereço:", boldFont)));
-            clienteTable.addCell(new PdfPCell(new Phrase(valorOuVazio(cliente != null ? cliente.getEndereco() : ""), normalFont)));
-            clienteTable.addCell(new PdfPCell(new Phrase("Telefone:", boldFont)));
-            clienteTable.addCell(new PdfPCell(new Phrase(valorOuVazio(cliente != null ? cliente.getTelefone() : ""), normalFont)));
+            clienteTable.addCell(new PdfPCell(new Phrase("Endereço:", boldFontCli)));
+            clienteTable.addCell(new PdfPCell(new Phrase(valorOuVazio(cliente != null ? cliente.getEndereco() : ""), normalFontCli)));
+            clienteTable.addCell(new PdfPCell(new Phrase("Telefone:", boldFontCli)));
+            clienteTable.addCell(new PdfPCell(new Phrase(valorOuVazio(cliente != null ? cliente.getTelefone() : ""), normalFontCli)));
 
             // Linha 3: E-mail | valor (valor ocupa as 3 colunas seguintes)
-            clienteTable.addCell(new PdfPCell(new Phrase("E-mail:", boldFont)));
-            PdfPCell emailValue = new PdfPCell(new Phrase(valorOuVazio(cliente != null ? cliente.getEmail() : ""), normalFont));
+            clienteTable.addCell(new PdfPCell(new Phrase("E-mail:", boldFontCli)));
+            PdfPCell emailValue = new PdfPCell(new Phrase(valorOuVazio(cliente != null ? cliente.getEmail() : ""), normalFontCli));
             emailValue.setColspan(3);
             clienteTable.addCell(emailValue);
 
             document.add(clienteTable);
 
-            // Tabela de itens
-            PdfPTable itensTable = new PdfPTable(new float[]{0.9f, 1.2f, 1.2f, 1.5f, 1.0f, 1.5f, 1.3f});
+            // Tabela de itens (inclui coluna COD como primeira)
+            PdfPTable itensTable = new PdfPTable(new float[]{0.9f, 0.9f, 1.2f, 1.2f, 1.5f, 1.0f, 1.5f, 1.3f});
             itensTable.setWidthPercentage(100);
             itensTable.getDefaultCell().setPadding(1f);
             itensTable.setSpacingAfter(2f);
             // Centraliza todo o conteúdo das células por padrão
             itensTable.getDefaultCell().setHorizontalAlignment(Element.ALIGN_CENTER);
+            addHeaderCell(itensTable, "COD", boldFont);
             addHeaderCell(itensTable, "QUANT.", boldFont);
             addHeaderCell(itensTable, "LARGURA (cm)", boldFont);
             addHeaderCell(itensTable, "ALTURA (cm)", boldFont);
@@ -706,6 +753,7 @@ public class QuoteForm extends VBox {
             int renderedRows = 0;
             if (quote.getItems() != null) {
                 for (QuoteItem item : quote.getItems()) {
+                    itensTable.addCell(new Phrase(valorOuVazio(item.getCode()), normalFont));
                     itensTable.addCell(new Phrase(String.valueOf(item.getQuantity()), normalFont));
                     itensTable.addCell(new Phrase(QuoteItem.formatDoubleBr(item.getWidth()), normalFont));
                     itensTable.addCell(new Phrase(QuoteItem.formatDoubleBr(item.getHeight()), normalFont));
@@ -720,8 +768,9 @@ public class QuoteForm extends VBox {
             }
 
             // Preenche com linhas marcadas com "---" até atingir 17 linhas
-            int minRows = 17;
+            int minRows = 12;
             for (int i = renderedRows; i < minRows; i++) {
+                itensTable.addCell(new Phrase("---", normalFont)); // COD
                 itensTable.addCell(new Phrase("---", normalFont)); // QUANT
                 itensTable.addCell(new Phrase("---", normalFont)); // LARGURA
                 itensTable.addCell(new Phrase("---", normalFont)); // ALTURA
@@ -734,8 +783,8 @@ public class QuoteForm extends VBox {
             // Rodapé com total de M3 e Subtotal sob as colunas correspondentes
             Font footerBold = boldFont;
             Color footerBg = Color.LIGHT_GRAY;
-            // QUANT, LARGURA, ALTURA, COMPRIMENTO -> células vazias
-            for (int i = 0; i < 4; i++) {
+            // COD, QUANT, LARGURA, ALTURA, COMPRIMENTO -> células vazias
+            for (int i = 0; i < 5; i++) {
                 PdfPCell empty = new PdfPCell(new Phrase("", footerBold));
                 empty.setBackgroundColor(footerBg);
                 itensTable.addCell(empty);
@@ -764,10 +813,11 @@ public class QuoteForm extends VBox {
 
             // Tabela de totais alinhada aos 2 últimos campos (UNIT e TOTAL) da tabela de itens
             float availableWidth = (float) (document.getPageSize().getWidth() - document.leftMargin() - document.rightMargin());
-            float[] itemCols = new float[]{0.9f, 1.2f, 1.2f, 1.5f, 1.0f, 1.5f, 1.3f};
+            float[] itemCols = new float[]{0.9f, 0.9f, 1.2f, 1.2f, 1.5f, 1.0f, 1.5f, 1.3f};
             float sum = 0f; for (float v : itemCols) sum += v;
             float unitColWidth = availableWidth * (1.5f / sum);   // largura da coluna VALOR UND. (R$/m³)
             float totalColWidth = availableWidth * (1.3f / sum);  // largura da coluna TOTAL (R$)
+            float leftColWidth = availableWidth - unitColWidth - totalColWidth; // espaço à esquerda (assinatura)
 
             PdfPTable totaisTable = new PdfPTable(2);
             totaisTable.setTotalWidth(new float[]{unitColWidth, totalColWidth});
@@ -804,12 +854,41 @@ public class QuoteForm extends VBox {
 
             totaisTable.addCell(totalLabelCell);
             totaisTable.addCell(totalValueCell);
-            document.add(totaisTable);
 
+            // Container com 3 colunas: [assinatura] [totais(colspan=2)]
+            PdfPTable assinaturaETotais = new PdfPTable(3);
+            assinaturaETotais.setTotalWidth(new float[]{leftColWidth, unitColWidth, totalColWidth});
+            assinaturaETotais.setLockedWidth(true);
+            assinaturaETotais.setHorizontalAlignment(Element.ALIGN_LEFT);
+            assinaturaETotais.getDefaultCell().setPadding(0f);
+
+            // Coluna esquerda: Assinatura e Observações empilhadas no mesmo bloco, próximos um do outro
+            PdfPTable esquerda = new PdfPTable(1);
+            esquerda.getDefaultCell().setBorder(Rectangle.NO_BORDER);
+            esquerda.getDefaultCell().setPadding(0f);
+            PdfPCell assinaturaCell = new PdfPCell(new Phrase("Assinatura: _______________________", headerValueFont));
+            assinaturaCell.setBorder(Rectangle.NO_BORDER);
+            assinaturaCell.setHorizontalAlignment(Element.ALIGN_LEFT);
+            assinaturaCell.setVerticalAlignment(Element.ALIGN_TOP);
+            esquerda.addCell(assinaturaCell);
             if (quote.getComplemento() != null && !quote.getComplemento().isBlank()) {
-                Paragraph comp = new Paragraph("Observações: " + quote.getComplemento(), smallFont);
-                document.add(comp);
+                PdfPCell obsCell = new PdfPCell(new Phrase("Observações: " + quote.getComplemento(), headerValueFont));
+                obsCell.setBorder(Rectangle.NO_BORDER);
+                obsCell.setHorizontalAlignment(Element.ALIGN_LEFT);
+                esquerda.addCell(obsCell);
             }
+            PdfPCell esquerdaContainer = new PdfPCell(esquerda);
+            esquerdaContainer.setBorder(Rectangle.NO_BORDER);
+            esquerdaContainer.setVerticalAlignment(Element.ALIGN_TOP);
+            assinaturaETotais.addCell(esquerdaContainer);
+
+            // Célula com a tabela de totais (colspan=2)
+            PdfPCell totaisContainer = new PdfPCell(totaisTable);
+            totaisContainer.setColspan(2);
+            totaisContainer.setBorder(Rectangle.NO_BORDER);
+            assinaturaETotais.addCell(totaisContainer);
+
+            document.add(assinaturaETotais);
 
             // Separador entre as cópias (apenas após a primeira)
             if (copy == 0) {
@@ -881,15 +960,6 @@ public class QuoteForm extends VBox {
         PdfPCell c4 = new PdfPCell();
         c4.setPhrase(new Phrase(v2, normal));
         table.addCell(c4);
-    }
-
-    private void addInfoRowFull(PdfPTable table, String label, String value, Font bold, Font normal, Color bg) {
-        PdfPCell c1 = new PdfPCell(new Phrase(label, bold));
-        if (bg != null) c1.setBackgroundColor(bg);
-        table.addCell(c1);
-        PdfPCell c2 = new PdfPCell(new Phrase(value, normal));
-        if (bg != null) c2.setBackgroundColor(bg);
-        table.addCell(c2);
     }
 
     private String valorOuVazio(String v) { return v == null ? "" : v; }
@@ -1012,6 +1082,7 @@ public class QuoteForm extends VBox {
         
         return true;
     }
+
 
     private void showAlert(String titulo, String mensagem, Alert.AlertType tipo) {
         Alert alert = new Alert(tipo);

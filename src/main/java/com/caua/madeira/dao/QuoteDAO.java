@@ -216,6 +216,7 @@ stmt.setDouble(5, quote.getShippingValue());
             while (rs.next()) {
                 QuoteItem item = new QuoteItem();
                 item.setId(String.valueOf(rs.getInt("id")));
+                item.setCode(rs.getString("code") != null ? rs.getString("code") : "");
                 item.setQuantity(rs.getInt("quantity"));
                 item.setWidth(rs.getDouble("width"));
                 item.setHeight(rs.getDouble("height"));
@@ -235,18 +236,19 @@ stmt.setDouble(5, quote.getShippingValue());
             return;
         }
         
-        String sql = "INSERT INTO quote_items (quote_id, quantity, width, height, length, unit_value, total) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id;";
+        String sql = "INSERT INTO quote_items (quote_id, code, quantity, width, height, length, unit_value, total) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id;";
         
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             for (QuoteItem item : itens) {
                 stmt.setInt(1, quoteId);
-                stmt.setInt(2, item.getQuantity());
-                stmt.setDouble(3, item.getWidth());
-                stmt.setDouble(4, item.getHeight());
-                stmt.setDouble(5, item.getLength());
-                stmt.setDouble(6, item.getUnitValue());
-                stmt.setDouble(7, item.getTotal());
+                stmt.setString(2, item.getCode() != null ? item.getCode() : "");
+                stmt.setInt(3, item.getQuantity());
+                stmt.setDouble(4, item.getWidth());
+                stmt.setDouble(5, item.getHeight());
+                stmt.setDouble(6, item.getLength());
+                stmt.setDouble(7, item.getUnitValue());
+                stmt.setDouble(8, item.getTotal());
                 
                 ResultSet rs = stmt.executeQuery();
                 if (rs.next()) {
