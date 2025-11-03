@@ -126,83 +126,94 @@ public class PurchaseHistoryDialog extends Stage {
         quoteTable.getColumns().addAll(dateCol, nameCol, totalCol);
     }
     
-private void setupItemsTable() {
-    itemsTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-    
-    // Quantity column
-    TableColumn<QuoteItem, Integer> qtyCol = new TableColumn<>("QTD");
-    qtyCol.setCellValueFactory(new PropertyValueFactory<>("quantity"));
-    qtyCol.setStyle("-fx-alignment: CENTER;");
-    qtyCol.setPrefWidth(50);
-    
-    // Width column
-    TableColumn<QuoteItem, String> widthCol = new TableColumn<>("LARG.(cm)");
-    widthCol.setCellValueFactory(cell -> {
-        QuoteItem item = cell.getValue();
-        return new javafx.beans.property.SimpleStringProperty(
-            String.format("%.1f", item.getWidth())
-        );
-    });
-    widthCol.setStyle("-fx-alignment: CENTER-RIGHT;");
-    widthCol.setPrefWidth(70);
-    
-    // Height column
-    TableColumn<QuoteItem, String> heightCol = new TableColumn<>("ALT.(cm)");
-    heightCol.setCellValueFactory(cell -> {
-        QuoteItem item = cell.getValue();
-        return new javafx.beans.property.SimpleStringProperty(
-            String.format("%.1f", item.getHeight())
-        );
-    });
-    heightCol.setStyle("-fx-alignment: CENTER-RIGHT;");
-    heightCol.setPrefWidth(70);
-    
-    // Length column
-    TableColumn<QuoteItem, String> lengthCol = new TableColumn<>("COMP.(m)");
-    lengthCol.setCellValueFactory(cell -> {
-        QuoteItem item = cell.getValue();
-        return new javafx.beans.property.SimpleStringProperty(
-            String.format("%.2f", item.getLength())
-        );
-    });
-    lengthCol.setStyle("-fx-alignment: CENTER-RIGHT;");
-    lengthCol.setPrefWidth(70);
-    
-    // Cubic meters
-    TableColumn<QuoteItem, String> m3Col = new TableColumn<>("M³");
-    m3Col.setCellValueFactory(cell -> {
-        QuoteItem item = cell.getValue();
-        return new javafx.beans.property.SimpleStringProperty(
-            String.format("%.3f", item.getCubicMeters())
-        );
-    });
-    m3Col.setStyle("-fx-alignment: CENTER-RIGHT;");
-    m3Col.setPrefWidth(70);
-    
-    // Unit value
-    TableColumn<QuoteItem, String> unitValueCol = new TableColumn<>("VALOR UND. (R$/m³)");
-    unitValueCol.setCellValueFactory(cell -> {
-        QuoteItem item = cell.getValue();
-        return new javafx.beans.property.SimpleStringProperty(
-            String.format("R$ %.2f", item.getUnitValue())
-        );
-    });
-    unitValueCol.setStyle("-fx-alignment: CENTER-RIGHT;");
-    unitValueCol.setPrefWidth(120);
-    
-    // Total value
-    TableColumn<QuoteItem, String> totalCol = new TableColumn<>("TOTAL (R$)");
-    totalCol.setCellValueFactory(cell -> {
-        QuoteItem item = cell.getValue();
-        return new javafx.beans.property.SimpleStringProperty(
-            String.format("R$ %.2f", item.getTotal())
-        );
-    });
-    totalCol.setStyle("-fx-alignment: CENTER-RIGHT;");
-    totalCol.setPrefWidth(100);
-    
-    itemsTable.getColumns().addAll(qtyCol, widthCol, heightCol, lengthCol, m3Col, unitValueCol, totalCol);
-}
+    private void setupItemsTable() {
+        itemsTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        
+        // Code column
+        TableColumn<QuoteItem, String> codeCol = new TableColumn<>("COD");
+        codeCol.setCellValueFactory(cell -> {
+            QuoteItem item = cell.getValue();
+            return new javafx.beans.property.SimpleStringProperty(
+                item.getCode() != null ? item.getCode() : ""
+            );
+        });
+        codeCol.setStyle("-fx-alignment: CENTER;");
+        codeCol.setPrefWidth(60);
+        
+        // Quantity column
+        TableColumn<QuoteItem, Integer> qtyCol = new TableColumn<>("QTD");
+        qtyCol.setCellValueFactory(new PropertyValueFactory<>("quantity"));
+        qtyCol.setStyle("-fx-alignment: CENTER;");
+        qtyCol.setPrefWidth(50);
+        
+        // Width column
+        TableColumn<QuoteItem, String> widthCol = new TableColumn<>("LARG.(cm)");
+        widthCol.setCellValueFactory(cell -> {
+            QuoteItem item = cell.getValue();
+            return new javafx.beans.property.SimpleStringProperty(
+                String.format("%.1f", item.getWidth())
+            );
+        });
+        widthCol.setStyle("-fx-alignment: CENTER-RIGHT;");
+        widthCol.setPrefWidth(70);
+        
+        // Height column
+        TableColumn<QuoteItem, String> heightCol = new TableColumn<>("ALT.(cm)");
+        heightCol.setCellValueFactory(cell -> {
+            QuoteItem item = cell.getValue();
+            return new javafx.beans.property.SimpleStringProperty(
+                String.format("%.1f", item.getHeight())
+            );
+        });
+        heightCol.setStyle("-fx-alignment: CENTER-RIGHT;");
+        heightCol.setPrefWidth(70);
+        
+        // Length column
+        TableColumn<QuoteItem, String> lengthCol = new TableColumn<>("COMP.(m)");
+        lengthCol.setCellValueFactory(cell -> {
+            QuoteItem item = cell.getValue();
+            return new javafx.beans.property.SimpleStringProperty(
+                String.format("%.2f", item.getLength())
+            );
+        });
+        lengthCol.setStyle("-fx-alignment: CENTER-RIGHT;");
+        lengthCol.setPrefWidth(70);
+        
+        // Cubic meters
+        TableColumn<QuoteItem, String> m3Col = new TableColumn<>("M³");
+        m3Col.setCellValueFactory(cell -> {
+            QuoteItem item = cell.getValue();
+            return new javafx.beans.property.SimpleStringProperty(
+                String.format("%.3f", item.getCubicMeters())
+            );
+        });
+        m3Col.setStyle("-fx-alignment: CENTER-RIGHT;");
+        m3Col.setPrefWidth(70);
+        
+        // Unit value
+        TableColumn<QuoteItem, String> unitValueCol = new TableColumn<>("VALOR UND. (R$/m³)");
+        unitValueCol.setCellValueFactory(cell -> {
+            QuoteItem item = cell.getValue();
+            return new javafx.beans.property.SimpleStringProperty(
+                String.format("R$ %.2f", item.getUnitValue())
+            );
+        });
+        unitValueCol.setStyle("-fx-alignment: CENTER-RIGHT;");
+        unitValueCol.setPrefWidth(120);
+        
+        // Total value
+        TableColumn<QuoteItem, String> totalCol = new TableColumn<>("TOTAL (R$)");
+        totalCol.setCellValueFactory(cell -> {
+            QuoteItem item = cell.getValue();
+            return new javafx.beans.property.SimpleStringProperty(
+                String.format("R$ %.2f", item.getTotal())
+            );
+        });
+        totalCol.setStyle("-fx-alignment: CENTER-RIGHT;");
+        totalCol.setPrefWidth(100);
+        
+        itemsTable.getColumns().addAll(codeCol, qtyCol, widthCol, heightCol, lengthCol, m3Col, unitValueCol, totalCol);
+    }
     
     private void updateItemsTable(Quote quote) {
         if (quote == null || quote.getItems() == null) {

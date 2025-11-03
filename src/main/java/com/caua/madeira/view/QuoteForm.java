@@ -21,6 +21,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextFormatter;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.beans.property.SimpleStringProperty;
@@ -148,35 +149,50 @@ public class QuoteForm extends VBox {
         
         // Shipping value
         Label shippingLabel = new Label("VALOR DO FRETE *");
-        shippingValueField = new TextField("0.00");
+        shippingValueField = new TextField("0,00");
         shippingValueField.setPrefWidth(150);
-        shippingValueField.textProperty().addListener((observable, oldValue, newValue) -> {
-            if (!newValue.matches("\\d*([,]\\d{0,2})?")) {
-                shippingValueField.setText(oldValue);
-            } else {
+        shippingValueField.setTextFormatter(new TextFormatter<>(change -> {
+            String newText = change.getControlNewText();
+            if (newText.matches("^\\d*([,]\\d{0,2})?$")) {
+                return change;
+            }
+            return null;
+        }));
+        shippingValueField.focusedProperty().addListener((obs, oldVal, newVal) -> {
+            if (!newVal) { // When focus is lost
+                try {
+                    String text = shippingValueField.getText().replace(".", "").replace(",", ".");
+                    double value = Double.parseDouble(text);
+                    shippingValueField.setText(String.format("%.2f", value).replace(".", ","));
+                } catch (NumberFormatException e) {
+                    shippingValueField.setText("0,00");
+                }
                 atualizarTotais();
             }
         });
         
         // Discount
         Label discountLabel = new Label("DESCONTO (%)");
-        discountField = new TextField("0.00");
+        discountField = new TextField("0,00");
         discountField.setPrefWidth(100);
-        discountField.textProperty().addListener((observable, oldValue, newValue) -> {
-            if (!newValue.matches("\\d*\\.?\\d{0,2}")) {
-                discountField.setText(oldValue);
-            } else if (!newValue.isEmpty()) {
+        discountField.setTextFormatter(new TextFormatter<>(change -> {
+            String newText = change.getControlNewText();
+            if (newText.matches("^\\d*([,]\\d{0,2})?$")) {
+                return change;
+            }
+            return null;
+        }));
+        discountField.focusedProperty().addListener((obs, oldVal, newVal) -> {
+            if (!newVal) { // When focus is lost
                 try {
-                    double discount = Double.parseDouble(newValue);
-                    if (discount < 0 || discount > 100) {
-                        discountField.setText(oldValue);
-                    } else {
-                        atualizarTotais();
-                    }
+                    String text = discountField.getText().replace(".", "").replace(",", ".");
+                    double value = Double.parseDouble(text);
+                    if (value < 0) value = 0;
+                    if (value > 100) value = 100;
+                    discountField.setText(String.format("%.2f", value).replace(".", ","));
                 } catch (NumberFormatException e) {
-                    discountField.setText(oldValue);
+                    discountField.setText("0,00");
                 }
-            } else {
                 atualizarTotais();
             }
         });
@@ -285,7 +301,7 @@ public class QuoteForm extends VBox {
         
         Button newButton = new Button("Novo");
         newButton.setStyle("-fx-background-color: #f5f5f5; -fx-pref-width: 100;");
-        newButton.setOnAction(e -> limparFormulario());
+        newButton.setOnAction(e -> novoOrcamento());
         
         deleteButton = new Button("Excluir");
         deleteButton.setStyle("-fx-background-color: #f5f5f5; -fx-pref-width: 100;");
@@ -538,8 +554,10 @@ public class QuoteForm extends VBox {
         double desconto = 0.0;
         
         try {
-            frete = Double.parseDouble(shippingValueField.getText().replace(",", "."));
-            desconto = discountField.getText().isEmpty() ? 0.0 : Double.parseDouble(discountField.getText());
+            String freteText = shippingValueField.getText().replace(".", "").replace(",", ".");
+            String descontoText = discountField.getText().replace(".", "").replace(",", ".");
+            frete = freteText.isEmpty() ? 0.0 : Double.parseDouble(freteText);
+            desconto = descontoText.isEmpty() ? 0.0 : Double.parseDouble(descontoText);
             
             // Aplica o desconto se for maior que zero
             if (desconto > 0) {
@@ -862,14 +880,17 @@ public class QuoteForm extends VBox {
             assinaturaETotais.setHorizontalAlignment(Element.ALIGN_LEFT);
             assinaturaETotais.getDefaultCell().setPadding(0f);
 
-            // Coluna esquerda: Assinatura e Observações empilhadas no mesmo bloco, próximos um do outro
+            // Coluna esquerda: Assinatura e Observações com espaçamento aumentado
             PdfPTable esquerda = new PdfPTable(1);
             esquerda.getDefaultCell().setBorder(Rectangle.NO_BORDER);
             esquerda.getDefaultCell().setPadding(0f);
+            
+            // Célula da assinatura
             PdfPCell assinaturaCell = new PdfPCell(new Phrase("Assinatura: _______________________", headerValueFont));
             assinaturaCell.setBorder(Rectangle.NO_BORDER);
             assinaturaCell.setHorizontalAlignment(Element.ALIGN_LEFT);
             assinaturaCell.setVerticalAlignment(Element.ALIGN_TOP);
+            assinaturaCell.setPaddingBottom(10f); // Adiciona espaço abaixo da assinatura
             esquerda.addCell(assinaturaCell);
             if (quote.getComplemento() != null && !quote.getComplemento().isBlank()) {
                 PdfPCell obsCell = new PdfPCell(new Phrase("Observações: " + quote.getComplemento(), headerValueFont));
@@ -1006,9 +1027,17 @@ public class QuoteForm extends VBox {
                 
                 // Atualiza os dados do orçamento
                 quoteAtual.setName(quoteNameField.getText());
-                quoteAtual.setShippingValue(Double.parseDouble(shippingValueField.getText().replace(",", ".")));
-                quoteAtual.setDiscount(discountField.getText().isEmpty() ? 0.0 : 
-                    Double.parseDouble(discountField.getText()));
+                
+                // Formata e define o valor do frete
+                String freteText = shippingValueField.getText().replace(".", "").replace(",", ".");
+                double frete = freteText.isEmpty() ? 0.0 : Double.parseDouble(freteText);
+                quoteAtual.setShippingValue(frete);
+                
+                // Formata e define o desconto
+                String descontoText = discountField.getText().replace(".", "").replace(",", ".");
+                double desconto = descontoText.isEmpty() ? 0.0 : Double.parseDouble(descontoText);
+                quoteAtual.setDiscount(desconto);
+                
                 quoteAtual.setComplemento(complementoField.getText());
                 quoteAtual.setItems(new ArrayList<>(itemsData));
                 
@@ -1058,16 +1087,25 @@ public class QuoteForm extends VBox {
         
         try {
             // Valida valor do frete
-            Double.parseDouble(shippingValueField.getText().replace(",", "."));
-            
-            // Valida desconto, se informado
-            if (!discountField.getText().isEmpty()) {
-                double desconto = Double.parseDouble(discountField.getText());
-                if (desconto < 0 || desconto > 100) {
-                    showAlert("Atenção", "O desconto deve estar entre 0 e 100%.", Alert.AlertType.WARNING);
-                    discountField.requestFocus();
-                    return false;
+            try {
+                String freteText = shippingValueField.getText().replace(".", "").replace(",", ".");
+                if (!freteText.isEmpty()) {
+                    Double.parseDouble(freteText);
                 }
+                
+                // Valida desconto, se informado
+                String descontoText = discountField.getText().replace(".", "").replace(",", ".");
+                if (!descontoText.isEmpty()) {
+                    double desconto = Double.parseDouble(descontoText);
+                    if (desconto < 0 || desconto > 100) {
+                        showAlert("Atenção", "O desconto deve estar entre 0 e 100%.", Alert.AlertType.WARNING);
+                        discountField.requestFocus();
+                        return false;
+                    }
+                }
+            } catch (NumberFormatException e) {
+                showAlert("Atenção", "Valores numéricos inválidos. Verifique os campos de frete e desconto.", Alert.AlertType.WARNING);
+                return false;
             }
             
         } catch (NumberFormatException e) {
@@ -1092,16 +1130,40 @@ public class QuoteForm extends VBox {
         alert.showAndWait();
     }
 
-    private void limparFormulario() {
+    /**
+     * Prepara o formulário para um novo orçamento
+     */
+    private void novoOrcamento() {
+        // Cria uma nova instância de Quote
         quoteAtual = new Quote();
+        
+        // Limpa todos os campos
+        limparFormulario();
+        
+        // Define o foco no campo de nome do orçamento
+        quoteNameField.requestFocus();
+    }
+    
+    /**
+     * Limpa todos os campos do formulário
+     */
+    private void limparFormulario() {
+        // Limpa os campos
         quoteNameField.clear();
-        shippingValueField.setText("0.00");
-        discountField.setText("0.00");
+        shippingValueField.setText("0,00");
+        discountField.setText("0,00");
         complementoField.clear();
-        clientComboBox.getSelectionModel().clearSelection();
+        
+        // Limpa a seleção do cliente, mantendo o texto de prompt
+        clientComboBox.setValue(null);
+        
+        // Limpa a lista de itens
         itemsData.clear();
+        
+        // Atualiza os totais
         atualizarTotais();
         
+        // Desabilita botões
         if (deleteButton != null) deleteButton.setDisable(true);
         if (printButton != null) printButton.setDisable(true);
     }

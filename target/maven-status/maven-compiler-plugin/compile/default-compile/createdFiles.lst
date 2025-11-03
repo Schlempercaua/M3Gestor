@@ -4,6 +4,7 @@ com\caua\madeira\view\QuoteForm$2.class
 com\caua\madeira\util\NumberUtils$2.class
 com\caua\madeira\model\Cliente.class
 com\caua\madeira\util\NumberUtils.class
+com\caua\madeira\view\QuoteForm$3.class
 com\caua\madeira\util\NumberUtils$1.class
 com\caua\madeira\dao\QuoteDAO.class
 com\caua\madeira\view\ClientList.class
