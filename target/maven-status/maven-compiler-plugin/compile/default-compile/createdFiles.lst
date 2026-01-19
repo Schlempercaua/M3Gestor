@@ -9,7 +9,6 @@ com\caua\madeira\util\NumberUtils$1.class
 com\caua\madeira\dao\QuoteDAO.class
 com\caua\madeira\view\ClientList.class
 com\caua\madeira\view\PurchaseHistoryDialog.class
-module-info.class
 com\caua\madeira\model\QuoteItem.class
 com\caua\madeira\view\ClientList$Client.class
 com\caua\madeira\view\QuoteForm.class
