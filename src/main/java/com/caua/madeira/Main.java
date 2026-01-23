@@ -22,9 +22,6 @@ import javafx.stage.Stage;
 mvn javafx:run
 */
 
-//Apagar : rmdir /s /q M3Gestor
-
-// Gerar instalador : jpackage --input dist\input --name M3Gestor --main-jar m3gestor.jar --main-class com.caua.madeira.Main --type app-image --java-options "--module-path=javafx\lib --add-modules=javafx.controls,javafx.fxml"
 public class Main extends Application {
     
     private BorderPane root;
