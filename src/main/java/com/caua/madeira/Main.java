@@ -29,7 +29,7 @@ public class Main extends Application {
     
     @Override
     public void start(Stage primaryStage) {
-        primaryStage.setTitle("M3Gestor - Madereira pai e filhos");
+        primaryStage.setTitle("M3Gestor - Madereira Pai e Filhos");
         
         // Create root layout
         root = new BorderPane();
@@ -64,7 +64,7 @@ public class Main extends Application {
         logo.setFitHeight(40);
         logo.setFitWidth(40);
         
-        Label title = new Label("Madereira pai e filhos");
+        Label title = new Label("Madereira Pai e Filhos");
         title.setTextFill(Color.WHITE);
         title.setFont(Font.font("Arial", FontWeight.BOLD, 18));
         
@@ -131,7 +131,7 @@ public class Main extends Application {
         logo1.setFitHeight(60);
         logo1.setFitWidth(60);
         
-        Label title = new Label("Madereira pai e filhos");
+        Label title = new Label("Madereira Pai e Filhos");
         title.setStyle("-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: #2e7d32;");
         
         ImageView logo2 = new ImageView();
