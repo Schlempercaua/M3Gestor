@@ -31,10 +31,12 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.util.converter.IntegerStringConverter;
 import javafx.util.StringConverter;
+import javafx.scene.input.KeyCode;
 
 // OpenPDF
 import com.lowagie.text.*;
 import com.lowagie.text.pdf.*;
+import com.lowagie.text.pdf.PdfPageEventHelper;
 
 import java.awt.Desktop;
 import java.awt.Color;
@@ -45,10 +47,99 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
 import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
 public class QuoteForm extends VBox {
+    
+    // Classe interna para célula personalizada com suporte a Tab
+    private class TabAwareTextFieldTableCell<S, T> extends TextFieldTableCell<S, T> {
+        
+        public TabAwareTextFieldTableCell(StringConverter<T> converter) {
+            super(converter);
+        }
+        
+        @Override
+        public void startEdit() {
+            super.startEdit();
+            if (getGraphic() != null) {
+                javafx.scene.control.TextField textField = getTextField();
+                
+                // Adiciona listener para eventos de teclado
+                textField.setOnKeyPressed(event -> {
+                    if (event.getCode() == KeyCode.TAB) {
+                        event.consume(); // Impede o comportamento padrão
+                        
+                        // Se o campo estiver vazio, usa o valor padrão do conversor
+                        String text = textField.getText();
+                        if (text == null || text.trim().isEmpty()) {
+                            text = "0";
+                        }
+                        
+                        try {
+                            commitEdit(getConverter().fromString(text));
+                        } catch (Exception e) {
+                            // Se falhar, comita com valor padrão
+                            commitEdit(getConverter().fromString("0"));
+                        }
+                        
+                        // Move para a próxima célula
+                        TableView<S> tableView = getTableView();
+                        if (tableView != null) {
+                            TableColumn<S, ?> nextColumn = getNextColumn();
+                            if (nextColumn != null) {
+                                // Usa um pequeno delay para garantir que a edição atual seja finalizada
+                                javafx.application.Platform.runLater(() -> {
+                                    int currentRow = getIndex();
+                                    tableView.getSelectionModel().select(currentRow);
+                                    tableView.edit(currentRow, nextColumn);
+                                });
+                            }
+                        }
+                    }
+                });
+                
+                // Usa um pequeno delay para garantir que o textField esteja pronto
+                javafx.application.Platform.runLater(() -> {
+                    textField.selectAll();
+                    textField.requestFocus();
+                });
+            }
+        }
+        
+        private javafx.scene.control.TextField getTextField() {
+            return (javafx.scene.control.TextField) getGraphic();
+        }
+        
+        @SuppressWarnings("unchecked")
+        private TableColumn<S, ?> getNextColumn() {
+            TableView<S> tableView = getTableView();
+            if (tableView == null) return null;
+            
+            ObservableList<TableColumn<S, ?>> columns = tableView.getVisibleLeafColumns();
+            int currentIndex = columns.indexOf(getTableColumn());
+            
+            // Procura a próxima coluna editável
+            for (int i = currentIndex + 1; i < columns.size(); i++) {
+                TableColumn<S, ?> nextCol = columns.get(i);
+                // Verifica se a coluna é editável (não é M3 nem TOTAL)
+                if (i != 5 && i != 7) { // Índices 5=M3, 7=TOTAL (baseado na ordem atual)
+                    return nextCol;
+                }
+            }
+            
+            // Se for a última coluna editável, move para a primeira coluna da próxima linha
+            int currentRow = getIndex();
+            if (currentRow < tableView.getItems().size() - 1) {
+                tableView.getSelectionModel().select(currentRow + 1);
+                return columns.get(0); // Primeira coluna (Código)
+            }
+            
+            return null;
+        }
+    }
     
     private TextField quoteNameField;
     private TextField shippingValueField;
@@ -378,20 +469,34 @@ public class QuoteForm extends VBox {
         itemsTable.setEditable(true);
         itemsTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         
-        // Code column (editável)
+        // Code column (editável com suporte a Tab)
         TableColumn<QuoteItem, String> codeCol = new TableColumn<>("COD");
         codeCol.setCellValueFactory(new PropertyValueFactory<>("code"));
-        codeCol.setCellFactory(TextFieldTableCell.forTableColumn());
+        codeCol.setCellFactory(column -> {
+            return new TabAwareTextFieldTableCell<QuoteItem, String>(new StringConverter<String>() {
+                @Override
+                public String toString(String value) {
+                    return value != null ? value : "";
+                }
+                
+                @Override
+                public String fromString(String text) {
+                    return text != null ? text : "";
+                }
+            });
+        });
         codeCol.setOnEditCommit(event -> {
             QuoteItem item = event.getRowValue();
             item.setCode(event.getNewValue());
         });
         codeCol.setPrefWidth(90);
         
-        // Quantity column (editável)
+        // Quantity column (editável com suporte a Tab)
         TableColumn<QuoteItem, Integer> quantityCol = new TableColumn<>("QUANT");
         quantityCol.setCellValueFactory(new PropertyValueFactory<>("quantity"));
-        quantityCol.setCellFactory(TextFieldTableCell.forTableColumn(new IntegerStringConverter()));
+        quantityCol.setCellFactory(column -> {
+            return new TabAwareTextFieldTableCell<QuoteItem, Integer>(new IntegerStringConverter());
+        });
         quantityCol.setOnEditCommit(event -> {
             QuoteItem item = event.getRowValue();
             item.setQuantity(event.getNewValue());
@@ -401,13 +506,11 @@ public class QuoteForm extends VBox {
         });
         quantityCol.setPrefWidth(60);
         
-        // Width column (editável)
+        // Width column (editável com suporte a Tab)
         TableColumn<QuoteItem, Double> widthCol = new TableColumn<>("LARGURA(cm)");
         widthCol.setCellValueFactory(new PropertyValueFactory<>("width"));
         widthCol.setCellFactory(column -> {
-            TextFieldTableCell<QuoteItem, Double> cell = new TextFieldTableCell<QuoteItem, Double>();
-            cell.setConverter(NumberUtils.createDoubleStringConverter());
-            return cell;
+            return new TabAwareTextFieldTableCell<QuoteItem, Double>(NumberUtils.createDoubleStringConverter());
         });
         widthCol.setOnEditCommit(event -> {
             QuoteItem item = event.getRowValue();
@@ -417,13 +520,11 @@ public class QuoteForm extends VBox {
         });
         widthCol.setPrefWidth(80);
         
-        // Height column (editável)
+        // Height column (editável com suporte a Tab)
         TableColumn<QuoteItem, Double> heightCol = new TableColumn<>("ESPESSURA(cm)");
         heightCol.setCellValueFactory(new PropertyValueFactory<>("height"));
         heightCol.setCellFactory(column -> {
-            TextFieldTableCell<QuoteItem, Double> cell = new TextFieldTableCell<QuoteItem, Double>();
-            cell.setConverter(NumberUtils.createDoubleStringConverter());
-            return cell;
+            return new TabAwareTextFieldTableCell<QuoteItem, Double>(NumberUtils.createDoubleStringConverter());
         });
         heightCol.setOnEditCommit(event -> {
             QuoteItem item = event.getRowValue();
@@ -433,13 +534,11 @@ public class QuoteForm extends VBox {
         });
         heightCol.setPrefWidth(80);
         
-        // Length column (editável)
+        // Length column (editável com suporte a Tab)
         TableColumn<QuoteItem, Double> lengthCol = new TableColumn<>("COMP(m)");
         lengthCol.setCellValueFactory(new PropertyValueFactory<>("length"));
         lengthCol.setCellFactory(column -> {
-            TextFieldTableCell<QuoteItem, Double> cell = new TextFieldTableCell<QuoteItem, Double>();
-            cell.setConverter(NumberUtils.createDoubleStringConverter());
-            return cell;
+            return new TabAwareTextFieldTableCell<QuoteItem, Double>(NumberUtils.createDoubleStringConverter());
         });
         lengthCol.setOnEditCommit(event -> {
             QuoteItem item = event.getRowValue();
@@ -457,13 +556,11 @@ public class QuoteForm extends VBox {
         });
         m3Col.setPrefWidth(90);
         
-        // Unit value column (editável)
+        // Unit value column (editável com suporte a Tab)
         TableColumn<QuoteItem, Double> unitValueCol = new TableColumn<>("VALOR UNIT(R$/m³)");
         unitValueCol.setCellValueFactory(new PropertyValueFactory<>("unitValue"));
         unitValueCol.setCellFactory(column -> {
-            TextFieldTableCell<QuoteItem, Double> cell = new TextFieldTableCell<QuoteItem, Double>();
-            cell.setConverter(NumberUtils.createCurrencyStringConverter());
-            return cell;
+            return new TabAwareTextFieldTableCell<QuoteItem, Double>(NumberUtils.createCurrencyStringConverter());
         });
         unitValueCol.setOnEditCommit(event -> {
             QuoteItem item = event.getRowValue();
@@ -494,6 +591,14 @@ public class QuoteForm extends VBox {
         itemsTable.getColumns().add(totalCol);
         itemsTable.setItems(itemsData);
         itemsTable.setEditable(true);
+        
+        // Configura foco da tabela para melhor navegação
+        itemsTable.setFocusTraversable(true);
+        itemsTable.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 1) {
+                itemsTable.requestFocus();
+            }
+        });
         
         // Adiciona botão para adicionar itens
         Button addItemButton = new Button("+ Adicionar Item");
@@ -527,6 +632,13 @@ public class QuoteForm extends VBox {
         itemsData.add(novoItem);
         itemsTable.getSelectionModel().select(novoItem);
         itemsTable.scrollTo(novoItem);
+        
+        // Inicia a edição automaticamente na primeira célula (código)
+        int rowIndex = itemsData.indexOf(novoItem);
+        javafx.application.Platform.runLater(() -> {
+            itemsTable.edit(rowIndex, itemsTable.getColumns().get(0));
+            itemsTable.requestFocus();
+        });
     }
 
     private void removerItemSelecionado() {
@@ -617,8 +729,24 @@ public class QuoteForm extends VBox {
 
         // Reduz a margem superior para aproveitar melhor o espaço
         Document document = new Document(PageSize.A4, 12, 12, 6, 12);
-        PdfWriter.getInstance(document, Files.newOutputStream(temp, StandardOpenOption.TRUNCATE_EXISTING));
+        PdfWriter writer = PdfWriter.getInstance(document, Files.newOutputStream(temp, StandardOpenOption.TRUNCATE_EXISTING));
         document.open();
+
+        // Limita a altura do conteúdo para metade da página
+        float pageHeight = document.getPageSize().getHeight();
+        float availableHeight = pageHeight - document.topMargin() - document.bottomMargin();
+        float halfHeight = availableHeight / 2f;
+        
+        writer.setPageEvent(new PdfPageEventHelper() {
+            @Override
+            public void onEndPage(PdfWriter writer, Document document) {
+                // Adiciona espaço em branco na metade inferior da página
+                PdfContentByte cb = writer.getDirectContent();
+                cb.moveTo(0, pageHeight / 2f);
+                cb.lineTo(document.getPageSize().getWidth(), pageHeight / 2f);
+                // Não desenha a linha, apenas define o limite visual
+            }
+        });
 
         // Configuração de fontes
         Font normalFont = FontFactory.getFont(FontFactory.HELVETICA, 10);
@@ -631,14 +759,24 @@ public class QuoteForm extends VBox {
         headerRightTitleFont.setColor(new Color(46, 125, 50)); // verde da identidade
         Font headerRightSubFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11);
 
-        // Duas cópias do orçamento na mesma página
-        for (int copy = 0; copy < 2; copy++) {
-            // Cabeçalho: logo (esq), informações (centro) e identificação (dir)
-            // Aumenta ligeiramente a coluna da logo e cria mais "respiro" para o bloco central
-            PdfPTable headerTable = new PdfPTable(new float[]{1.4f, 2.8f, 1.3f});
-            headerTable.setWidthPercentage(100);
-            headerTable.setHorizontalAlignment(Element.ALIGN_LEFT);
-            headerTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
+        // Apenas uma cópia do orçamento ocupando metade da página
+        // Cria uma tabela para conter o orçamento na metade superior da página
+        PdfPTable containerTable = new PdfPTable(1);
+        containerTable.setWidthPercentage(100);
+        containerTable.setSpacingAfter(0);
+        
+        // Célula que conterá o orçamento
+        PdfPCell containerCell = new PdfPCell();
+        containerCell.setBorder(Rectangle.NO_BORDER);
+        containerCell.setPadding(0);
+        
+        // Adiciona todo o conteúdo do orçamento dentro da célula
+        // Cabeçalho: logo (esq), informações (centro) e identificação (dir)
+        // Aumenta ligeiramente a coluna da logo e cria mais "respiro" para o bloco central
+        PdfPTable headerTable = new PdfPTable(new float[]{1.4f, 2.8f, 1.3f});
+        headerTable.setWidthPercentage(100);
+        headerTable.setHorizontalAlignment(Element.ALIGN_LEFT);
+        headerTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
 
             // Coluna da logo (esquerda)
             Image logoImg = carregarLogoOpcional();
@@ -695,12 +833,16 @@ public class QuoteForm extends VBox {
             infoCell.setPaddingLeft(18f); // mais espaço entre logo e informações
             headerTable.addCell(infoCell);
 
-            // Coluna direita: "Orçamento" e "Data: ___/___/_____"
+            // Coluna direita: "Orçamento" e "Data: [data atual]"
             Paragraph rightBlock = new Paragraph();
             rightBlock.setAlignment(Element.ALIGN_RIGHT);
             rightBlock.setLeading(16f); // aumenta o espaçamento entre linhas
             rightBlock.add(new Phrase("Orçamento\n\n", headerRightTitleFont)); // linha extra para dar mais distância
-            rightBlock.add(new Phrase("Data: ___/___/_____", headerRightSubFont));
+            
+            // Formata a data atual no padrão brasileiro
+            LocalDate dataAtual = LocalDate.now();
+            String dataFormatada = dataAtual.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+            rightBlock.add(new Phrase("Data: " + dataFormatada, headerRightSubFont));
 
             PdfPCell rightCell = new PdfPCell(rightBlock);
             rightCell.setBorder(Rectangle.NO_BORDER);
@@ -712,7 +854,7 @@ public class QuoteForm extends VBox {
 
             headerTable.setSpacingBefore(0f); // sem espaço extra acima do cabeçalho
             headerTable.setSpacingAfter(10f);
-            document.add(headerTable);
+            containerCell.addElement(headerTable);
 
             // Bloco cliente (mais informações por linha)
             PdfPTable clienteTable = new PdfPTable(new float[]{1.0f, 3.0f, 1.0f, 2.5f});
@@ -748,7 +890,7 @@ public class QuoteForm extends VBox {
             emailValue.setColspan(3);
             clienteTable.addCell(emailValue);
 
-            document.add(clienteTable);
+            containerCell.addElement(clienteTable);
 
             // Tabela de itens (inclui coluna COD como primeira)
             PdfPTable itensTable = new PdfPTable(new float[]{0.9f, 0.9f, 1.2f, 1.2f, 1.5f, 1.0f, 1.5f, 1.3f});
@@ -821,7 +963,7 @@ public class QuoteForm extends VBox {
             subtotalCell.setBackgroundColor(footerBg);
             subtotalCell.setHorizontalAlignment(Element.ALIGN_CENTER);
             itensTable.addCell(subtotalCell);
-            document.add(itensTable);
+            containerCell.addElement(itensTable);
 
             // Totais
             double desconto = quote.getDiscount(); // percentual
@@ -909,13 +1051,13 @@ public class QuoteForm extends VBox {
             totaisContainer.setBorder(Rectangle.NO_BORDER);
             assinaturaETotais.addCell(totaisContainer);
 
-            document.add(assinaturaETotais);
+            containerCell.addElement(assinaturaETotais);
 
-            // Separador entre as cópias (apenas após a primeira)
-            if (copy == 0) {
-                document.add(new com.lowagie.text.pdf.draw.LineSeparator(0.5f, 100, Color.GRAY, Element.ALIGN_CENTER, -2));
-            }
-        }
+        // Adiciona a célula ao container
+        containerTable.addCell(containerCell);
+
+        // Adiciona o container ao documento
+        document.add(containerTable);
 
         document.close();
         return temp;

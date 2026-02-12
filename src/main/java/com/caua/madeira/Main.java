@@ -52,6 +52,17 @@ public class Main extends Application {
         primaryStage.setMinHeight(700);
         primaryStage.show();
     }
+
+    private ImageView createLogo(double size) {
+        ImageView logo = new ImageView(
+            getClass().getResource("/images/img_logo.jpg").toExternalForm()
+        );
+        logo.setFitWidth(size);
+        logo.setFitHeight(size);
+        logo.setPreserveRatio(true);
+        return logo;
+    }   
+
     
     private void createHeader() {
         HBox header = new HBox(20);
@@ -60,9 +71,8 @@ public class Main extends Application {
         
         // Logo and title
         HBox logoBox = new HBox(10);
-        ImageView logo = new ImageView();
-        logo.setFitHeight(40);
-        logo.setFitWidth(40);
+        ImageView logo = createLogo(40);
+
         
         Label title = new Label("Madereira Pai e Filhos");
         title.setTextFill(Color.WHITE);
@@ -127,16 +137,12 @@ public class Main extends Application {
         HBox logoTitle = new HBox(10);
         logoTitle.setAlignment(Pos.CENTER);
         
-        ImageView logo1 = new ImageView();
-        logo1.setFitHeight(60);
-        logo1.setFitWidth(60);
+        ImageView logo1 = createLogo(60);
         
         Label title = new Label("Madereira Pai e Filhos");
         title.setStyle("-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: #2e7d32;");
         
-        ImageView logo2 = new ImageView();
-        logo2.setFitHeight(60);
-        logo2.setFitWidth(60);
+        ImageView logo2 = createLogo(60);
         
         logoTitle.getChildren().addAll(logo1, title, logo2);
         
