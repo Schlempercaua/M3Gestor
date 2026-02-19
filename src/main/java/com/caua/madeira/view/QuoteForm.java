@@ -1066,6 +1066,7 @@ public class QuoteForm extends VBox {
     private Image carregarLogoOpcional() {
         // Ordem de preferência de nomes (inclui o informado pelo usuário)
         String[] names = new String[]{
+                "images/img_logo.jpg", // caminho correto onde a logo está localizada
                 "img_logo.jpg", // preferencial informado pelo usuário (raiz ou resources)
                 "logo.jpg",
                 "logo.png"
@@ -1094,6 +1095,20 @@ public class QuoteForm extends VBox {
         for (String n : names) {
             try {
                 Path p = Path.of("src", "main", "resources", n);
+                if (Files.exists(p)) {
+                    return Image.getInstance(Files.readAllBytes(p));
+                }
+            } catch (Exception ignored) { }
+        }
+
+        // 4) Caminho alternativo para development (com subdiretório images)
+        String[] devNames = new String[]{
+                "src/main/resources/images/img_logo.jpg",
+                "src/main/resources/img_logo.jpg"
+        };
+        for (String n : devNames) {
+            try {
+                Path p = Path.of(n);
                 if (Files.exists(p)) {
                     return Image.getInstance(Files.readAllBytes(p));
                 }
